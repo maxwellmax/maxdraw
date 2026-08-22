@@ -27,6 +27,7 @@ class CatalogSeeder extends Seeder
             ComponentSeeder::class,
             PhaseSeeder::class,
             ChecklistItemSeeder::class,
+            ProblemSeeder::class,
         ]);
     }
 }

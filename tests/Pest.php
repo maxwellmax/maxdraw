@@ -6,6 +6,8 @@ use App\Models\ComponentCategory;
 use App\Models\EstimateMode;
 use App\Models\LinkType;
 use App\Models\Phase;
+use App\Models\Problem;
+use App\Models\ProblemItem;
 use App\Models\ProblemItemType;
 use App\Models\ProblemLevel;
 use App\Models\SequenceMode;
@@ -161,6 +163,8 @@ function catalogModels(): array
         ComponentCategory::class,
         Component::class,
         LinkType::class,
+        Problem::class,
+        ProblemItem::class,
         SequenceMode::class,
         SessionDuration::class,
         EstimateMode::class,
