@@ -162,7 +162,8 @@ return [
 
     'features' => [
         Features::registration(),
-        Features::resetPasswords(),
+        // Features::resetPasswords() — fora do v1: a tabela `password_reset_tokens`
+        // existe, mas o fluxo não é exposto em rota nenhuma (database-schema.md).
         Features::emailVerification(),
         Features::twoFactorAuthentication([
             'confirm' => true,

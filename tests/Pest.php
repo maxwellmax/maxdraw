@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 /*
@@ -47,4 +48,48 @@ expect()->extend('toBeOne', function () {
 function something()
 {
     // ..
+}
+
+/**
+ * As 14 tabelas de domínio do `database-schema.md`, na ordem em que as
+ * migrations as criam. Não inclui as tabelas de infraestrutura do Laravel.
+ *
+ * @return array<int, string>
+ */
+function domainTables(): array
+{
+    return [
+        'problem_levels',
+        'problem_item_types',
+        'component_categories',
+        'link_types',
+        'sequence_modes',
+        'session_durations',
+        'estimate_modes',
+        'problems',
+        'problem_items',
+        'components',
+        'phases',
+        'checklist_items',
+        'users',
+        'training_sessions',
+    ];
+}
+
+/**
+ * @param  array<int, string>  $columns
+ */
+function hasUniqueIndex(string $table, array $columns): bool
+{
+    return collect(Schema::getIndexes($table))
+        ->contains(fn (array $index): bool => $index['unique'] && $index['columns'] === $columns);
+}
+
+/**
+ * @param  array<int, string>  $columns
+ */
+function hasIndex(string $table, array $columns): bool
+{
+    return collect(Schema::getIndexes($table))
+        ->contains(fn (array $index): bool => $index['columns'] === $columns);
 }
