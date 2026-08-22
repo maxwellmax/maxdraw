@@ -519,7 +519,7 @@ PREAMBLE
     echo
     echo "Este e o comando exato usado para validar a fase. Nao use outro runner"
     echo "nem rode os testes por fora dele."
-    if [ -n "$SAIL_BIN" ]; then
+    if [ -n "$SAIL_BIN" ] && test_cmd_uses_sail; then
       echo "O projeto usa Laravel Sail: artisan, composer, php e testes rodam DENTRO"
       echo "do container, via '$SAIL_BIN <cmd>'. Nunca rode essas ferramentas no host."
     fi
