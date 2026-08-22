@@ -17,6 +17,9 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
 
+        // Quem já entrou não tem o que fazer nas telas de conta: o app é a prancheta.
+        $middleware->redirectUsersTo('/prancheta');
+
         $middleware->web(append: [
             HandleAppearance::class,
             HandleInertiaRequests::class,

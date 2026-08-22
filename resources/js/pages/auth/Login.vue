@@ -1,13 +1,10 @@
 <script setup lang="ts">
-import { Form, Head } from '@inertiajs/vue3';
+import { Form, Head, Link } from '@inertiajs/vue3';
 import InputError from '@/components/InputError.vue';
 import PasskeyVerify from '@/components/PasskeyVerify.vue';
-import PasswordInput from '@/components/PasswordInput.vue';
-import TextLink from '@/components/TextLink.vue';
-import { Button } from '@/components/ui/button';
+import PranchetaButton from '@/components/prancheta/PranchetaButton.vue';
+import PranchetaInput from '@/components/prancheta/PranchetaInput.vue';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { register } from '@/routes';
 import { store } from '@/routes/login';
@@ -21,8 +18,8 @@ import { store } from '@/routes/login';
 
 defineOptions({
     layout: {
-        title: 'Log in to your account',
-        description: 'Enter your email and password below to log in',
+        title: 'Entrar na sua conta',
+        description: 'Informe e-mail e senha para retomar o treino',
     },
 });
 
@@ -33,11 +30,11 @@ defineProps<{
 </script>
 
 <template>
-    <Head title="Log in" />
+    <Head title="Entrar" />
 
     <div
         v-if="status"
-        class="mb-4 text-center text-sm font-medium text-green-600"
+        class="mb-4 text-center text-[13px] font-medium text-sd-ok"
     >
         {{ status }}
     </div>
@@ -48,69 +45,83 @@ defineProps<{
         v-bind="store.form()"
         :reset-on-success="['password']"
         v-slot="{ errors, processing }"
-        class="flex flex-col gap-6"
+        class="flex flex-col gap-5"
     >
-        <div class="grid gap-6">
-            <div class="grid gap-2">
-                <Label for="email">Email address</Label>
-                <Input
-                    id="email"
-                    type="email"
-                    name="email"
-                    required
-                    autofocus
-                    :tabindex="1"
-                    autocomplete="email"
-                    placeholder="email@example.com"
-                />
-                <InputError :message="errors.email" />
-            </div>
+        <div class="grid gap-2">
+            <label for="email" class="text-[12.5px] font-medium text-sd-ink-2">
+                E-mail
+            </label>
+            <PranchetaInput
+                id="email"
+                type="email"
+                name="email"
+                required
+                autofocus
+                :tabindex="1"
+                autocomplete="email"
+                placeholder="voce@exemplo.com"
+            />
+            <InputError :message="errors.email" />
+        </div>
 
-            <div class="grid gap-2">
-                <div class="flex items-center justify-between">
-                    <Label for="password">Password</Label>
-                    <TextLink
-                        v-if="canResetPassword"
-                        href="/forgot-password"
-                        class="text-sm"
-                        :tabindex="5"
-                    >
-                        Forgot your password?
-                    </TextLink>
-                </div>
-                <PasswordInput
-                    id="password"
-                    name="password"
-                    required
-                    :tabindex="2"
-                    autocomplete="current-password"
-                    placeholder="Password"
-                />
-                <InputError :message="errors.password" />
-            </div>
-
+        <div class="grid gap-2">
             <div class="flex items-center justify-between">
-                <Label for="remember" class="flex items-center space-x-3">
-                    <Checkbox id="remember" name="remember" :tabindex="3" />
-                    <span>Remember me</span>
-                </Label>
+                <label
+                    for="password"
+                    class="text-[12.5px] font-medium text-sd-ink-2"
+                >
+                    Senha
+                </label>
+                <Link
+                    v-if="canResetPassword"
+                    href="/forgot-password"
+                    class="text-[12.5px] text-sd-accent underline-offset-4 hover:underline"
+                    :tabindex="5"
+                >
+                    Esqueceu a senha?
+                </Link>
             </div>
+            <PranchetaInput
+                id="password"
+                type="password"
+                name="password"
+                required
+                :tabindex="2"
+                autocomplete="current-password"
+                placeholder="Sua senha"
+            />
+            <InputError :message="errors.password" />
+        </div>
 
-            <Button
-                type="submit"
-                class="mt-4 w-full"
-                :tabindex="4"
-                :disabled="processing"
-                data-test="login-button"
+        <label
+            for="remember"
+            class="flex items-center gap-2.5 text-[12.5px] text-sd-ink-2"
+        >
+            <Checkbox id="remember" name="remember" :tabindex="3" />
+            <span>Lembrar de mim</span>
+        </label>
+
+        <PranchetaButton
+            variant="primary"
+            type="submit"
+            class="w-full justify-center"
+            :tabindex="4"
+            :disabled="processing"
+            data-test="login-button"
+        >
+            <Spinner v-if="processing" />
+            Entrar
+        </PranchetaButton>
+
+        <p class="text-center text-[12.5px] text-sd-ink-2">
+            Ainda não tem conta?
+            <Link
+                :href="register()"
+                class="text-sd-accent underline-offset-4 hover:underline"
+                :tabindex="5"
             >
-                <Spinner v-if="processing" />
-                Log in
-            </Button>
-        </div>
-
-        <div class="text-center text-sm text-muted-foreground">
-            Don't have an account?
-            <TextLink :href="register()" :tabindex="5">Sign up</TextLink>
-        </div>
+                Criar conta
+            </Link>
+        </p>
     </Form>
 </template>

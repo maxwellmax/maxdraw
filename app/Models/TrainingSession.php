@@ -2,9 +2,13 @@
 
 namespace App\Models;
 
+use App\Policies\TrainingSessionPolicy;
 use Carbon\CarbonImmutable;
 use Database\Factories\TrainingSessionFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Attributes\UsePolicy;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -47,6 +51,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'estimate',
     'last_opened_at',
 ])]
+#[UsePolicy(TrainingSessionPolicy::class)]
 class TrainingSession extends Model
 {
     /** @use HasFactory<TrainingSessionFactory> */
@@ -67,6 +72,18 @@ class TrainingSession extends Model
             'estimate' => 'array',
             'last_opened_at' => 'datetime',
         ];
+    }
+
+    /**
+     * O isolamento por usuário (US-1.4) começa aqui: nenhuma leitura de sessão
+     * sai sem dono, nem quando a policy já teria recusado o acesso.
+     *
+     * @param  Builder<TrainingSession>  $query
+     */
+    #[Scope]
+    protected function ownedBy(Builder $query, User $user): void
+    {
+        $query->where($this->qualifyColumn('user_id'), $user->id);
     }
 
     /**

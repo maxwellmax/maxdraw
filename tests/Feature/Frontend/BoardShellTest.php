@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\User;
 use Inertia\Testing\AssertableInertia;
 
 /**
@@ -8,7 +9,8 @@ use Inertia\Testing\AssertableInertia;
  * cada uma carrega — é o contrato que as fases 9 a 19 vão consumir.
  */
 it('serve a prancheta pela rota nomeada board', function () {
-    $this->get(route('board'))
+    $this->actingAs(User::factory()->create())
+        ->get(route('board'))
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page->component('Board'));
 });
