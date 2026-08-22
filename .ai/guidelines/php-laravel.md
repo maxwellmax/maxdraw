@@ -80,12 +80,12 @@ aplicação — siga-a, não a versão abstrata.
 
 ## Inertia + Vue 3 instructions
 
-This project's frontend is **Inertia v2 + Vue 3**. It does NOT use Livewire — ignore any Livewire guidance. As regras de Blade das seções acima (`@session`, `@selected`, `@checked`, `Route::view`, controller que só retorna `view()`) só se aplicam a telas Blade: aqui toda tela é renderizada por `Inertia::render`, então elas não valem. For non-trivial Vue/Inertia work, activate the `inertia-vue-development` skill; for styling, activate `tailwindcss-development`.
+This project's frontend is **Inertia v3 + Vue 3** (a versão entregue pelo starter kit oficial do Laravel 13; a `.spec` diz "Inertia 2" porque foi escrita antes do bump — não faça downgrade). It does NOT use Livewire — ignore any Livewire guidance. As regras de Blade das seções acima (`@session`, `@selected`, `@checked`, `Route::view`, controller que só retorna `view()`) só se aplicam a telas Blade: aqui toda tela é renderizada por `Inertia::render`, então elas não valem. For non-trivial Vue/Inertia work, activate the `inertia-vue-development` skill; for styling, activate `tailwindcss-development`.
 
 - Server routes render pages via `Inertia::render('Directory/PageName', [...props])` from traditional Controllers/actions. Do not build API-style JSON endpoints for pages that Inertia renders.
 - Vue pages live in `resources/js/Pages/` (mirroring the feature, e.g. `Pages/Quotes/Index.vue`); shared pieces in `resources/js/Components/` and `resources/js/Layouts/`.
 - Every Vue component must have a single root element.
-- Use `useForm` / the `<Form>` component from `@inertiajs/vue3` for forms and `<Link>`/`router` for navigation. Prefer partial reloads and Inertia v2 features (deferred props, prefetching, polling) over ad-hoc `fetch`.
+- Use `useForm` / the `<Form>` component from `@inertiajs/vue3` for forms and `<Link>`/`router` for navigation. Prefer partial reloads and Inertia features (deferred props, prefetching, polling, optimistic updates) over ad-hoc `fetch`.
 - Keep business logic on the server (Controller → Service), never in `.vue` files — the frontend only binds, validates, and presents.
 
 ---

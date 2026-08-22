@@ -27,3 +27,8 @@ yarn-error.log
 /.nova
 /.vscode
 /.zed
+
+# A spec do projeto e versionada. Esta maquina tem `.spec/` no core.excludesFile
+# global (/root/.config/git/ignore); a negacao aqui tem precedencia sobre ele e
+# garante que quem clona o repo receba .spec/ junto.
+!.spec/

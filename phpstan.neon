@@ -10,4 +10,13 @@ parameters:
         - database/
         - routes/
 
+    # Nivel inicial: 7 (Open Question "Nivel do PHPStan/Larastan" do
+    # .spec/init/project-phases.md). Level 7 e o teto que o starter kit atravessa
+    # limpo sem baseline nem ignoreErrors — a fase comeca verde e sem divida.
+    #
+    # Meta de subida: 8 quando o dominio (models, services, DTOs do catalogo)
+    # estiver estavel, e 9 como alvo final do v1. O que separa 7 de 8/9 e
+    # basicamente `mixed` nao checado; subir cedo demais so gera ruido enquanto
+    # as assinaturas do dominio ainda mudam. Subir um nivel por vez, zerando os
+    # erros do nivel antes de ir ao proximo — nunca com baseline.
     level: 7
