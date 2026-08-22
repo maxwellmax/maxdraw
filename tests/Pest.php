@@ -1,13 +1,18 @@
 <?php
 
+use App\Models\ChecklistItem;
+use App\Models\Component;
 use App\Models\ComponentCategory;
 use App\Models\EstimateMode;
 use App\Models\LinkType;
+use App\Models\Phase;
 use App\Models\ProblemItemType;
 use App\Models\ProblemLevel;
 use App\Models\SequenceMode;
 use App\Models\SessionDuration;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
@@ -117,6 +122,83 @@ function asHttpRuntime(Closure $callback): void
     } finally {
         $property->setValue(app(), $wasRunningInConsole);
     }
+}
+
+/**
+ * As tabelas do catálogo — a metade somente-leitura do schema, populada pelo
+ * `CatalogSeeder` e nunca escrita pela aplicação.
+ *
+ * @return array<int, string>
+ */
+function catalogTables(): array
+{
+    return [
+        'problem_levels',
+        'problem_item_types',
+        'component_categories',
+        'link_types',
+        'sequence_modes',
+        'session_durations',
+        'estimate_modes',
+        'problems',
+        'problem_items',
+        'components',
+        'phases',
+        'checklist_items',
+    ];
+}
+
+/**
+ * Os models de catálogo já povoados pelo seeder desta fase.
+ *
+ * @return array<int, class-string<Model>>
+ */
+function catalogModels(): array
+{
+    return [
+        ProblemLevel::class,
+        ProblemItemType::class,
+        ComponentCategory::class,
+        Component::class,
+        LinkType::class,
+        SequenceMode::class,
+        SessionDuration::class,
+        EstimateMode::class,
+        Phase::class,
+        ChecklistItem::class,
+    ];
+}
+
+/**
+ * Retrato do catálogo inteiro sem os timestamps: o upsert do seeder reescreve
+ * `updated_at` a cada execução, e é o conteúdo que precisa ser idêntico.
+ *
+ * @return array<string, array<int, array<string, mixed>>>
+ */
+function catalogSnapshot(): array
+{
+    return collect(catalogTables())
+        ->mapWithKeys(fn (string $table): array => [
+            $table => DB::table($table)->orderBy('id')->get()
+                ->map(fn (object $row): array => collect((array) $row)->except(['created_at', 'updated_at'])->all())
+                ->all(),
+        ])
+        ->all();
+}
+
+/**
+ * As chaves do mapa de ícones do motor do canvas, lidas do próprio módulo — é
+ * ele que decide quais `icon_key` o catálogo pode usar.
+ *
+ * @return array<int, string>
+ */
+function canvasIconKeys(): array
+{
+    $source = file_get_contents(resource_path('js/canvas/icons.ts'));
+
+    preg_match_all('/^\s+([A-Za-z][A-Za-z0-9]*):\s*`/m', (string) $source, $matches);
+
+    return $matches[1];
 }
 
 dataset('lookupModels', [

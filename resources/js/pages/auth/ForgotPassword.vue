@@ -7,7 +7,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { login } from '@/routes';
-import { email } from '@/routes/password';
+
+/*
+ * A recuperação de senha está desligada no v1 (`Features::resetPasswords()`
+ * comentado em `config/fortify.php`), então o Wayfinder não gera os helpers de
+ * `@/routes/password` — as URLs padrão do Fortify entram literais até a feature
+ * ser religada.
+ */
 
 defineOptions({
     layout: {
@@ -32,7 +38,11 @@ defineProps<{
     </div>
 
     <div class="space-y-6">
-        <Form v-bind="email.form()" v-slot="{ errors, processing }">
+        <Form
+            action="/forgot-password"
+            method="post"
+            v-slot="{ errors, processing }"
+        >
             <div class="grid gap-2">
                 <Label for="email">Email address</Label>
                 <Input

@@ -11,7 +11,13 @@ import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { register } from '@/routes';
 import { store } from '@/routes/login';
-import { request } from '@/routes/password';
+
+/*
+ * A recuperação de senha está desligada no v1 (`Features::resetPasswords()`
+ * comentado em `config/fortify.php`), então o Wayfinder não gera os helpers de
+ * `@/routes/password` — as URLs padrão do Fortify entram literais até a feature
+ * ser religada.
+ */
 
 defineOptions({
     layout: {
@@ -65,7 +71,7 @@ defineProps<{
                     <Label for="password">Password</Label>
                     <TextLink
                         v-if="canResetPassword"
-                        :href="request()"
+                        href="/forgot-password"
                         class="text-sm"
                         :tabindex="5"
                     >
