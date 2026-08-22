@@ -9,7 +9,10 @@ export default defineConfig({
     },
     test: {
         environment: 'node',
-        include: ['resources/js/canvas/**/*.test.ts'],
+        include: [
+            'resources/js/canvas/**/*.test.ts',
+            'resources/js/prancheta/**/*.test.ts',
+        ],
         passWithNoTests: true,
     },
 });

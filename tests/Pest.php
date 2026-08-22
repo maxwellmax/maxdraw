@@ -214,3 +214,79 @@ dataset('lookupModels', [
     'session_durations' => [SessionDuration::class],
     'estimate_modes' => [EstimateMode::class],
 ]);
+
+/**
+ * O CSS do protótipo congelado — o contrato visual que a Phase 6 porta.
+ */
+function prototypeCss(): string
+{
+    return file_get_contents(base_path('.spec/init/design/pranchetasystemdesign.html'));
+}
+
+function pranchetaCss(): string
+{
+    return file_get_contents(resource_path('css/prancheta.css'));
+}
+
+/**
+ * Lê os tokens declarados no primeiro bloco cujo seletor casa com o padrão, com
+ * os valores normalizados: caixa, aspas, espaços e o zero antes do ponto variam
+ * conforme o formatador, o hex em si não.
+ *
+ * @return array<string, string>
+ */
+function cssTokens(string $css, string $selectorPattern): array
+{
+    $css = (string) preg_replace('#/\*.*?\*/#s', '', $css);
+
+    if (preg_match('/'.$selectorPattern.'\s*\{/', $css, $matches, PREG_OFFSET_CAPTURE) !== 1) {
+        return [];
+    }
+
+    $open = $matches[0][1] + strlen($matches[0][0]) - 1;
+    $depth = 1;
+    $cursor = $open + 1;
+
+    while ($cursor < strlen($css) && $depth > 0) {
+        $depth += match ($css[$cursor]) {
+            '{' => 1,
+            '}' => -1,
+            default => 0,
+        };
+
+        $cursor++;
+    }
+
+    preg_match_all(
+        '/(--[a-z0-9-]+)\s*:\s*([^;]+);/i',
+        substr($css, $open + 1, $cursor - $open - 2),
+        $declarations,
+        PREG_SET_ORDER
+    );
+
+    $tokens = [];
+
+    foreach ($declarations as $declaration) {
+        $tokens[$declaration[1]] = normalizeCssValue($declaration[2]);
+    }
+
+    ksort($tokens);
+
+    return $tokens;
+}
+
+function normalizeCssValue(string $value): string
+{
+    $value = str_replace('"', "'", mb_strtolower($value));
+    $value = (string) preg_replace('/\s+/', '', $value);
+
+    return (string) preg_replace('/(?<![0-9])0\./', '.', $value);
+}
+
+/**
+ * O conteúdo de um arquivo do frontend, pelo caminho relativo a `resources/js`.
+ */
+function frontendSource(string $path): string
+{
+    return file_get_contents(resource_path('js/'.$path));
+}

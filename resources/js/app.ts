@@ -1,5 +1,6 @@
 import { createInertiaApp } from '@inertiajs/vue3';
 import { initializeTheme } from '@/composables/useAppearance';
+import { initializeTheme as initializePranchetaTheme } from '@/composables/useTheme';
 import AppLayout from '@/layouts/AppLayout.vue';
 import AuthLayout from '@/layouts/AuthLayout.vue';
 import SettingsLayout from '@/layouts/settings/Layout.vue';
@@ -12,6 +13,7 @@ createInertiaApp({
     layout: (name) => {
         switch (true) {
             case name === 'Welcome':
+            case name === 'Board':
                 return null;
             case name.startsWith('auth/'):
                 return AuthLayout;
@@ -28,6 +30,9 @@ createInertiaApp({
 
 // This will set light / dark mode on page load...
 initializeTheme();
+
+// ...and this reads the prancheta theme preference from the browser.
+initializePranchetaTheme();
 
 // This will listen for flash toast data from the server...
 initializeFlashToast();

@@ -16,6 +16,15 @@
                         document.documentElement.classList.add('dark');
                     }
                 }
+
+                // The prancheta theme is a browser preference, never a server one.
+                try {
+                    const theme = localStorage.getItem('sd-theme');
+
+                    if (theme === 'light' || theme === 'dark') {
+                        document.documentElement.setAttribute('data-theme', theme);
+                    }
+                } catch (e) {}
             })();
         </script>
 

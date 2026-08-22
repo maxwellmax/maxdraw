@@ -1,0 +1,156 @@
+/*
+  Tokens da Prancheta de System Design, portados de
+  `.spec/init/design/pranchetasystemdesign.html`.
+
+  Tema claro em `:root` puro, tema escuro nos dois lugares que o protótipo usa:
+  a media query (para quem nunca tocou no botão de tema) e `[data-theme="dark"]`
+  (para quem escolheu explicitamente). Nenhuma cor mora só na media query.
+
+  Os tokens crus mantêm o nome do protótipo; o bloco `@theme` os expõe ao
+  Tailwind sob o prefixo `sd-` (`bg-sd-panel`, `text-sd-ink-2`, `rounded-sd`)
+  para não colidir com o namespace do starter kit (`--color-accent` e afins).
+*/
+
+:root {
+    --paper: #f3f5f8;
+    --panel: #ffffff;
+    --panel-2: #ebeff4;
+    --panel-3: #e1e7ee;
+    --ink: #131820;
+    --ink-2: #4a5567;
+    --ink-3: #7c8998;
+    --line: #dce2e9;
+    --line-2: #c6cfda;
+    --grid: #cbd4df;
+    --accent: #0e7c8c;
+    --accent-2: #0a616e;
+    --accent-ink: #ffffff;
+    --accent-soft: #dceff2;
+    --ok: #1e8e62;
+    --warn: #b0700f;
+    --crit: #bf3a2e;
+    --c-client: #5e7189;
+    --c-edge: #2f7fd1;
+    --c-compute: #6455d8;
+    --c-data: #b0801a;
+    --c-async: #a9439a;
+    --c-ops: #2f8557;
+    --shadow-1: 0 1px 2px rgba(16, 24, 40, 0.07);
+    --shadow-2:
+        0 2px 4px rgba(16, 24, 40, 0.06),
+        0 12px 28px -14px rgba(16, 24, 40, 0.28);
+    --r: 8px;
+    --ui: 'Archivo', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+    --serif: 'Source Serif 4', Georgia, 'Times New Roman', serif;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme='light']) {
+        --paper: #0e1218;
+        --panel: #161b23;
+        --panel-2: #1c232d;
+        --panel-3: #232c38;
+        --ink: #e7ebf1;
+        --ink-2: #a5b1c1;
+        --ink-3: #707e90;
+        --line: #242c37;
+        --line-2: #333d4b;
+        --grid: #2a3441;
+        --accent: #2fb3c4;
+        --accent-2: #57c7d6;
+        --accent-ink: #04222a;
+        --accent-soft: #12303a;
+        --ok: #3fbf88;
+        --warn: #e0a343;
+        --crit: #e4685c;
+        --c-client: #8fa1b8;
+        --c-edge: #5aa8f0;
+        --c-compute: #8f84f0;
+        --c-data: #dca83c;
+        --c-async: #d274c4;
+        --c-ops: #4fb37c;
+        --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+        --shadow-2:
+            0 2px 4px rgba(0, 0, 0, 0.3), 0 12px 28px -14px rgba(0, 0, 0, 0.7);
+    }
+}
+
+:root[data-theme='dark'] {
+    --paper: #0e1218;
+    --panel: #161b23;
+    --panel-2: #1c232d;
+    --panel-3: #232c38;
+    --ink: #e7ebf1;
+    --ink-2: #a5b1c1;
+    --ink-3: #707e90;
+    --line: #242c37;
+    --line-2: #333d4b;
+    --grid: #2a3441;
+    --accent: #2fb3c4;
+    --accent-2: #57c7d6;
+    --accent-ink: #04222a;
+    --accent-soft: #12303a;
+    --ok: #3fbf88;
+    --warn: #e0a343;
+    --crit: #e4685c;
+    --c-client: #8fa1b8;
+    --c-edge: #5aa8f0;
+    --c-compute: #8f84f0;
+    --c-data: #dca83c;
+    --c-async: #d274c4;
+    --c-ops: #4fb37c;
+    --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-2:
+        0 2px 4px rgba(0, 0, 0, 0.3), 0 12px 28px -14px rgba(0, 0, 0, 0.7);
+}
+
+@theme inline {
+    --color-sd-paper: var(--paper);
+    --color-sd-panel: var(--panel);
+    --color-sd-panel-2: var(--panel-2);
+    --color-sd-panel-3: var(--panel-3);
+    --color-sd-ink: var(--ink);
+    --color-sd-ink-2: var(--ink-2);
+    --color-sd-ink-3: var(--ink-3);
+    --color-sd-line: var(--line);
+    --color-sd-line-2: var(--line-2);
+    --color-sd-grid: var(--grid);
+    --color-sd-accent: var(--accent);
+    --color-sd-accent-2: var(--accent-2);
+    --color-sd-accent-ink: var(--accent-ink);
+    --color-sd-accent-soft: var(--accent-soft);
+    --color-sd-ok: var(--ok);
+    --color-sd-warn: var(--warn);
+    --color-sd-crit: var(--crit);
+    --color-sd-c-client: var(--c-client);
+    --color-sd-c-edge: var(--c-edge);
+    --color-sd-c-compute: var(--c-compute);
+    --color-sd-c-data: var(--c-data);
+    --color-sd-c-async: var(--c-async);
+    --color-sd-c-ops: var(--c-ops);
+
+    --radius-sd: var(--r);
+    --shadow-sd-1: var(--shadow-1);
+    --shadow-sd-2: var(--shadow-2);
+
+    --font-sd-ui: var(--ui);
+    --font-sd-mono: var(--mono);
+    --font-sd-serif: var(--serif);
+}
+
+/* O shell da prancheta é uma tela cheia: quem rola é cada painel, nunca o body. */
+body:has([data-testid='board-shell']) {
+    overflow: hidden;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--ui);
+}
+
+.sd-grid-dots {
+    background-image: radial-gradient(
+        circle at 1px 1px,
+        var(--grid) 1.1px,
+        transparent 0
+    );
+}
