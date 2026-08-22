@@ -1,0 +1,284 @@
+import { beforeEach, describe, expect, it } from 'vitest';
+import { CanvasEngine } from './engine';
+import {
+    catalogFixture,
+    edgeFixture,
+    nodeFixture,
+    stateFixture,
+} from './fixtures';
+import { NODE_WIDTH } from './geometry';
+import type { SessionState } from './types';
+import { MAX_SCALE, MIN_SCALE } from './view';
+
+const STAGE = { width: 1200, height: 800 };
+
+function engineWith(state: SessionState = stateFixture()): CanvasEngine {
+    const engine = new CanvasEngine(state, catalogFixture());
+
+    engine.setSize(STAGE);
+
+    return engine;
+}
+
+describe('paleta', () => {
+    let engine: CanvasEngine;
+
+    beforeEach(() => {
+        engine = engineWith();
+    });
+
+    it('coloca o bloco no meio da área visível e já o seleciona', () => {
+        const result = engine.addNode('api');
+
+        expect(result.ok).toBe(true);
+        expect(engine.nodes).toHaveLength(1);
+        expect(engine.nodes[0].x).toBe(
+            Math.round((STAGE.width / 2 - NODE_WIDTH / 2) / 4) * 4,
+        );
+        expect(engine.isSelected('node', engine.nodes[0].id)).toBe(true);
+    });
+
+    it('usa o nome curto do componente como rótulo inicial', () => {
+        engine.addNode('dlq');
+
+        expect(engine.nodes[0].label).toBe('DLQ');
+    });
+
+    it('tira a cor do bloco da categoria do componente', () => {
+        expect(engine.color('api')).toBe('var(--c-compute)');
+        expect(engine.color('sql')).toBe('var(--c-data)');
+        expect(engine.color('dlq')).toBe('var(--c-async)');
+        expect(engine.color('aposentado')).toBe('var(--ink-3)');
+    });
+
+    it('recusa um tipo que não está no catálogo', () => {
+        expect(engine.addNode('inexistente')).toEqual({
+            ok: false,
+            reason: 'unknownComponent',
+        });
+        expect(engine.nodes).toHaveLength(0);
+    });
+});
+
+describe('arrastar', () => {
+    it('move com snap de 4 px e empilha um único desfazer', () => {
+        const engine = engineWith(stateFixture([nodeFixture('a', 100, 100)]));
+
+        engine.beginDrag('a', 100, 100);
+        engine.dragTo(203, 151);
+        engine.dragTo(211, 159);
+        engine.endDrag();
+
+        expect(engine.nodes[0]).toMatchObject({ x: 212, y: 160 });
+        expect(engine.undoDepth).toBe(1);
+    });
+
+    it('um arrasto que não moveu nada não empilha', () => {
+        const engine = engineWith(stateFixture([nodeFixture('a', 100, 100)]));
+
+        engine.beginDrag('a', 110, 110);
+        engine.dragTo(111, 109);
+
+        expect(engine.endDrag()).toBe(false);
+        expect(engine.undoDepth).toBe(0);
+    });
+});
+
+describe('renomear', () => {
+    it('empilha desfazer e volta ao nome curto quando esvaziado', () => {
+        const engine = engineWith(
+            stateFixture([nodeFixture('a', 0, 0, 'dlq')]),
+        );
+
+        expect(engine.renameNode('a', 'fila de falhas do checkout')).toBe(true);
+        expect(engine.undoDepth).toBe(1);
+
+        engine.renameNode('a', '  ');
+
+        expect(engine.nodes[0].label).toBe('DLQ');
+        expect(engine.undoDepth).toBe(2);
+    });
+
+    it('não empilha quando o rótulo não mudou', () => {
+        const engine = engineWith(stateFixture([nodeFixture('a')]));
+
+        engine.renameNode('a', 'a');
+
+        expect(engine.undoDepth).toBe(0);
+    });
+});
+
+describe('apagar', () => {
+    it('delete_clears_selection', () => {
+        const engine = engineWith(
+            stateFixture(
+                [nodeFixture('a'), nodeFixture('b', 400)],
+                [edgeFixture('e1', 'a', 'b')],
+            ),
+        );
+
+        engine.selectNode('a');
+
+        expect(engine.deleteSelection()).toBe(true);
+        expect(engine.selection).toBeNull();
+        expect(engine.nodes.map((node) => node.id)).toEqual(['b']);
+        expect(engine.edges).toHaveLength(0);
+    });
+
+    it('não faz nada sem seleção', () => {
+        const engine = engineWith(stateFixture([nodeFixture('a')]));
+
+        expect(engine.deleteSelection()).toBe(false);
+        expect(engine.undoDepth).toBe(0);
+    });
+});
+
+describe('desfazer', () => {
+    it('undo_restores_previous_nodes_and_edges', () => {
+        const engine = engineWith();
+
+        engine.addNode('api');
+        engine.addNode('sql');
+        const [first, second] = engine.nodes.map((node) => node.id);
+        engine.addEdge(first, second);
+
+        expect(engine.undo()).toBe(true);
+        expect(engine.edges).toHaveLength(0);
+        expect(engine.nodes).toHaveLength(2);
+
+        expect(engine.undo()).toBe(true);
+        expect(engine.nodes).toHaveLength(1);
+
+        expect(engine.redo()).toBe(true);
+        expect(engine.nodes).toHaveLength(2);
+    });
+
+    it('redo_stack_is_cleared_by_new_action', () => {
+        const engine = engineWith();
+
+        engine.addNode('api');
+        engine.addNode('sql');
+        engine.undo();
+
+        expect(engine.canRedo).toBe(true);
+
+        engine.addNode('worker');
+
+        expect(engine.canRedo).toBe(false);
+        expect(engine.redo()).toBe(false);
+    });
+
+    it('changing_sequence_mode_does_not_push_undo', () => {
+        const engine = engineWith();
+
+        engine.addNode('api');
+
+        const depth = engine.undoDepth;
+
+        expect(engine.setSequenceMode('flow')).toBe(true);
+        expect(engine.seqMode).toBe('flow');
+        expect(engine.setSequenceMode('off')).toBe(true);
+        expect(engine.undoDepth).toBe(depth);
+    });
+
+    it('pan_and_zoom_do_not_push_undo', () => {
+        const engine = engineWith();
+
+        engine.addNode('api');
+
+        const depth = engine.undoDepth;
+
+        engine.panBy(120, -60);
+        engine.zoomBy(1.2);
+        engine.zoomAt(0.8, 300, 200);
+        engine.wheel(-240, 300, 200);
+        engine.fit();
+        engine.select(null);
+
+        expect(engine.undoDepth).toBe(depth);
+        expect(engine.canRedo).toBe(false);
+    });
+
+    it('a pilha guarda só nós e arestas', () => {
+        const engine = engineWith();
+
+        engine.addNode('api');
+        engine.panBy(200, 200);
+        engine.setSequenceMode('flow');
+        engine.selectNode(engine.nodes[0].id);
+        engine.undo();
+
+        expect(engine.view).toMatchObject({ x: 200, y: 200 });
+        expect(engine.seqMode).toBe('flow');
+        expect(engine.nodes).toHaveLength(0);
+    });
+});
+
+describe('navegação', () => {
+    it('faz pan somando o deslocamento do ponteiro', () => {
+        const engine = engineWith();
+
+        engine.panBy(40, -25);
+        engine.panBy(10, 5);
+
+        expect(engine.view).toMatchObject({ x: 50, y: -20, k: 1 });
+    });
+
+    it('ancora o zoom no ponto sob o cursor', () => {
+        const engine = engineWith();
+
+        engine.wheel(-200, 300, 200);
+
+        const [worldX, worldY] = engine.toWorld(300, 200);
+
+        expect(engine.view.k).toBeGreaterThan(1);
+        expect(worldX).toBeCloseTo(300, 8);
+        expect(worldY).toBeCloseTo(200, 8);
+    });
+
+    it('mantém a escala entre 30% e 240%', () => {
+        const engine = engineWith();
+
+        for (let step = 0; step < 40; step++) {
+            engine.zoomBy(1.2);
+        }
+
+        expect(engine.view.k).toBe(MAX_SCALE);
+
+        for (let step = 0; step < 60; step++) {
+            engine.zoomBy(1 / 1.2);
+        }
+
+        expect(engine.view.k).toBe(MIN_SCALE);
+    });
+
+    it('enquadra tudo reservando a largura da legenda expandida', () => {
+        const engine = engineWith(
+            stateFixture([nodeFixture('a', 0, 0), nodeFixture('b', 1600, 900)]),
+        );
+        const rightEdge = (): number =>
+            engine.view.x + (1600 + NODE_WIDTH) * engine.view.k;
+        const legendEdge = STAGE.width - 238;
+
+        engine.fit();
+
+        expect(rightEdge()).toBeGreaterThan(legendEdge);
+
+        const wide = engine.view.k;
+
+        engine.setLegendWidth(238);
+        engine.fit();
+
+        expect(engine.view.k).toBeLessThan(wide);
+        expect(rightEdge()).toBeLessThanOrEqual(legendEdge);
+    });
+
+    it('volta ao enquadramento padrão com o palco vazio', () => {
+        const engine = engineWith();
+
+        engine.panBy(300, 300);
+        engine.fit();
+
+        expect(engine.view).toEqual({ x: 0, y: 0, k: 1 });
+    });
+});

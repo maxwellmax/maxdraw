@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
+import { GRID_SIZE } from '@/canvas/view';
 import LegendPanel from '@/components/prancheta/LegendPanel.vue';
 import ZoomBar from '@/components/prancheta/ZoomBar.vue';
 
@@ -22,17 +23,23 @@ defineEmits<{
 }>();
 
 const gridStyle = computed(() => ({
-    backgroundSize: `${26 * props.scale}px ${26 * props.scale}px`,
+    backgroundSize: `${GRID_SIZE * props.scale}px ${GRID_SIZE * props.scale}px`,
     backgroundPosition: `${props.offsetX}px ${props.offsetY}px`,
 }));
 
 const worldStyle = computed(() => ({
     transform: `translate(${props.offsetX}px, ${props.offsetY}px) scale(${props.scale})`,
 }));
+
+const root = ref<HTMLElement | null>(null);
+
+/** O elemento do palco é o alvo dos gestos: quem os traduz é `useStageInteraction`. */
+defineExpose({ el: root });
 </script>
 
 <template>
     <main
+        ref="root"
         data-testid="stage"
         class="relative min-w-0 touch-none overflow-hidden bg-sd-paper"
     >

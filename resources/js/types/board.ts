@@ -1,0 +1,36 @@
+import type { CatalogCategory } from '@/canvas/catalog';
+import type { Edge, Node } from '@/canvas/types';
+
+/**
+ * A sessão como o `TrainingSessionResource` a entrega. Os nomes são os do
+ * servidor: o motor do canvas trabalha com `seqMode`, a resposta traz
+ * `seq_mode`, e a conversão acontece na página.
+ */
+export type SessionPayload = {
+    id: number;
+    problem_id: number | null;
+    duration_minutes: number;
+    seq_mode: string;
+    elapsed_seconds: number;
+    notes: string | null;
+    nodes: Node[];
+    edges: Edge[];
+    checks: Record<string, boolean>;
+    estimate: Record<string, string | number>;
+    last_opened_at: string | null;
+    updated_at: string | null;
+};
+
+/**
+ * O catálogo do `CatalogService`. As listas que ainda não têm consumidor ficam
+ * como `unknown[]` — cada fase tipa a sua quando passa a lê-la.
+ */
+export type BoardCatalog = {
+    problems: unknown[];
+    component_categories: CatalogCategory[];
+    link_types: unknown[];
+    phases: unknown[];
+    sequence_modes: unknown[];
+    session_durations: unknown[];
+    estimate_modes: unknown[];
+};

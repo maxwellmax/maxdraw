@@ -251,6 +251,37 @@ function canvasIconKeys(): array
     return $matches[1];
 }
 
+/**
+ * Os nomes dos testes do motor do canvas, lidos dos arquivos do Vitest. O gate
+ * da fase roda `php artisan test`, então é daqui que a suíte PHP enxerga o que
+ * a suíte do motor cobre.
+ *
+ * @return array<int, string>
+ */
+function canvasTestNames(): array
+{
+    $names = [];
+
+    foreach (glob(resource_path('js/canvas/*.test.ts')) as $file) {
+        preg_match_all("/\bit\('([^']+)'/", (string) file_get_contents($file), $matches);
+
+        $names = [...$names, ...$matches[1]];
+    }
+
+    return $names;
+}
+
+/**
+ * Os arquivos do motor do canvas, pelo nome. Resolvido sem `resource_path()`
+ * de propósito: datasets do Pest são montados antes de a aplicação subir.
+ *
+ * @return array<int, string>
+ */
+function canvasFiles(): array
+{
+    return array_map('basename', glob(dirname(__DIR__).'/resources/js/canvas/*.ts'));
+}
+
 dataset('lookupModels', [
     'problem_levels' => [ProblemLevel::class],
     'problem_item_types' => [ProblemItemType::class],

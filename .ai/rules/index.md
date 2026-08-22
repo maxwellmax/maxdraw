@@ -5,6 +5,8 @@ Before planning or editing, find the row whose globs match the file's path and r
 | Applies to | Rule file |
 | --- | --- |
 | resources/js/pages/auth/** | .ai/rules/auth.md |
+| resources/js/canvas/** | .ai/rules/canvas.md |
+| resources/js/composables/useStageInteraction.ts | .ai/rules/composables.md |
 | config/fortify.php | .ai/rules/config.md |
 | app/Http/Controllers/** | .ai/rules/controllers.md |
 | resources/css/** | .ai/rules/css.md |
