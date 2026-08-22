@@ -1,5 +1,12 @@
 <?php
 
+use App\Models\ComponentCategory;
+use App\Models\EstimateMode;
+use App\Models\LinkType;
+use App\Models\ProblemItemType;
+use App\Models\ProblemLevel;
+use App\Models\SequenceMode;
+use App\Models\SessionDuration;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
@@ -93,3 +100,31 @@ function hasIndex(string $table, array $columns): bool
     return collect(Schema::getIndexes($table))
         ->contains(fn (array $index): bool => $index['columns'] === $columns);
 }
+
+/**
+ * Executa o callback com a aplicação se reportando fora do console — é assim
+ * que o guard de catálogo somente-leitura enxerga uma requisição HTTP.
+ */
+function asHttpRuntime(Closure $callback): void
+{
+    $property = new ReflectionProperty(app(), 'isRunningInConsole');
+    $wasRunningInConsole = app()->runningInConsole();
+
+    $property->setValue(app(), false);
+
+    try {
+        $callback();
+    } finally {
+        $property->setValue(app(), $wasRunningInConsole);
+    }
+}
+
+dataset('lookupModels', [
+    'problem_levels' => [ProblemLevel::class],
+    'problem_item_types' => [ProblemItemType::class],
+    'component_categories' => [ComponentCategory::class],
+    'link_types' => [LinkType::class],
+    'sequence_modes' => [SequenceMode::class],
+    'session_durations' => [SessionDuration::class],
+    'estimate_modes' => [EstimateMode::class],
+]);
