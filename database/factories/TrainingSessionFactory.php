@@ -9,6 +9,7 @@ use App\Models\SequenceMode;
 use App\Models\SessionDuration;
 use App\Models\TrainingSession;
 use App\Models\User;
+use App\Services\SessionCreator;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use InvalidArgumentException;
 
@@ -37,16 +38,7 @@ class TrainingSessionFactory extends Factory
             'nodes' => [],
             'edges' => [],
             'checks' => [],
-            'estimate' => [
-                'mode' => 'user',
-                'dau' => 1000000,
-                'act' => 10,
-                'per_month' => 10000000,
-                'ratio' => 100,
-                'size' => 1,
-                'peak' => 3,
-                'ret' => 3,
-            ],
+            'estimate' => SessionCreator::DEFAULT_ESTIMATE,
             'last_opened_at' => now(),
         ];
     }
@@ -99,10 +91,10 @@ class TrainingSessionFactory extends Factory
 
     private function defaultSequenceModeId(): int
     {
-        $id = SequenceMode::query()->where('slug', 'out')->value('id');
+        $id = SequenceMode::query()->where('slug', SequenceMode::DEFAULT_SLUG)->value('id');
 
         return is_null($id)
-            ? SequenceMode::factory()->create(['slug' => 'out'])->id
+            ? SequenceMode::factory()->create(['slug' => SequenceMode::DEFAULT_SLUG])->id
             : (int) $id;
     }
 

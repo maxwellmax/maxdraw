@@ -78,6 +78,8 @@ test('remember_me_sets_recaller_cookie', function () {
 });
 
 test('logout_invalidates_session', function () {
+    seedCatalog();
+
     $user = User::factory()->create();
 
     $this->actingAs($user)->get(route('board'))->assertOk();

@@ -33,6 +33,12 @@ class SequenceMode extends Model
     use HasActiveScope, HasFactory, ReadOnlyAtRuntime;
 
     /**
+     * O modo com que a sessão nasce, e para o qual um valor inválido de
+     * `seq_mode` é normalizado em vez de recusar a gravação (US-4.3).
+     */
+    public const DEFAULT_SLUG = 'out';
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>

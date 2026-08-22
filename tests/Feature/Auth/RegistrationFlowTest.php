@@ -99,6 +99,8 @@ test('registration_requires_a_password_of_at_least_eight_characters', function (
 });
 
 test('registration_does_not_require_email_verification', function () {
+    seedCatalog();
+
     $this->post(route('register.store'), [
         'name' => 'Direto Na Prancheta',
         'email' => 'direto@example.com',

@@ -4,11 +4,17 @@ namespace App\Http\Resources;
 
 use App\Models\TrainingSession;
 use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Attributes\PreserveKeys;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
+ * `checks` é um mapa chaveado por `checklist_items.id`, e o filtro do Resource
+ * reindexa arrays de chave numérica por padrão — sem `PreserveKeys` a marcação
+ * do item 7 chegaria ao cliente como a marcação do item 0.
+ *
  * @mixin TrainingSession
  */
+#[PreserveKeys]
 class TrainingSessionResource extends JsonResource
 {
     /**

@@ -9,6 +9,8 @@ use Inertia\Testing\AssertableInertia;
  * cada uma carrega — é o contrato que as fases 9 a 19 vão consumir.
  */
 it('serve a prancheta pela rota nomeada board', function () {
+    seedCatalog();
+
     $this->actingAs(User::factory()->create())
         ->get(route('board'))
         ->assertOk()

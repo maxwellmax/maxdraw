@@ -12,6 +12,7 @@ use App\Models\ProblemItemType;
 use App\Models\ProblemLevel;
 use App\Models\SequenceMode;
 use App\Models\SessionDuration;
+use Database\Seeders\CatalogSeeder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -62,6 +63,51 @@ expect()->extend('toBeOne', function () {
 function something()
 {
     // ..
+}
+
+/**
+ * O payload do autosave como o cliente o envia: diagrama, checklist, notas,
+ * estimativa, tempo, duração e modo de numeração de uma vez.
+ *
+ * @param  array<string, mixed>  $overrides
+ * @return array<string, mixed>
+ */
+function autosaveBody(array $overrides = []): array
+{
+    return array_replace([
+        'nodes' => [
+            ['id' => 'n1', 'type' => 'api', 'label' => 'API REST', 'x' => 320, 'y' => 180],
+            ['id' => 'n2', 'type' => 'sql', 'label' => 'Banco', 'x' => 520, 'y' => 180],
+        ],
+        'edges' => [
+            ['id' => 'e1', 'from' => 'n1', 'to' => 'n2', 'kind' => 'query', 'label' => 'SELECT', 'dashed' => false, 'bidir' => false],
+        ],
+        'checks' => [],
+        'notes' => 'anotações do treino',
+        'elapsed_seconds' => 742,
+        'seq_mode' => 'flow',
+        'duration_minutes' => 60,
+        'estimate' => [
+            'mode' => 'month',
+            'dau' => 0,
+            'act' => 0,
+            'per_month' => 500000000,
+            'ratio' => 100,
+            'size' => 1,
+            'peak' => 3,
+            'ret' => 3,
+        ],
+    ], $overrides);
+}
+
+/**
+ * O catálogo versionado que a aplicação lê em runtime. A prancheta não sobe sem
+ * ele: sessão nova precisa da duração padrão e do modo de numeração, e o
+ * payload do autosave é validado contra os slugs seedados aqui.
+ */
+function seedCatalog(): void
+{
+    test()->seed(CatalogSeeder::class);
 }
 
 /**
