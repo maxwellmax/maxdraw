@@ -76,7 +76,8 @@
 # sobre `composer test`. Containers parados -> abort no preflight (todo gate 2
 # falharia, queimando ciclos de correcao).
 #
-# Variaveis de ambiente:
+# Variaveis de ambiente (um .ralph.env na raiz e carregado antes de tudo e pode
+# definir qualquer uma delas; flags de linha de comando continuam com prioridade):
 #   RALPH_TEST_CMD           comando de teste (gate 2); --test-cmd tem prioridade
 #   RALPH_VERIFY             gate 3: always (default) | auto | off
 #   RALPH_VERIFY_MODEL       modelo do verificador (default: haiku no claude)
@@ -101,6 +102,19 @@
 #   - Raiz de um repo git, com a arvore de trabalho limpa
 
 set -euo pipefail
+
+# Config por maquina: .ralph.env na raiz da arvore define as RALPH_* sem exigir
+# prefixo no comando. Carregado ANTES das atribuicoes abaixo para valer para
+# todas elas. Nao versionavel por natureza: o host de quem roda o loop (ex: VPS
+# com PHP/MySQL nativos) nao e o mesmo ambiente de quem clona e usa Sail.
+RALPH_ENV_LOADED=""
+if [ -f .ralph.env ]; then
+  set -a
+  # shellcheck source=/dev/null
+  . ./.ralph.env
+  set +a
+  RALPH_ENV_LOADED=".ralph.env"
+fi
 
 ENGINE="claude"
 INPUT_FILE=""
@@ -326,6 +340,10 @@ resolve_test_cmd() {
 }
 
 preflight_checks() {
+  if [ -n "$RALPH_ENV_LOADED" ]; then
+    log "Config do projeto carregada de $RALPH_ENV_LOADED"
+  fi
+
   if [[ "$ENGINE" != "codex" && "$ENGINE" != "claude" ]]; then
     fail "Engine invalida: $ENGINE. Use 'codex' ou 'claude'."
     exit 1
