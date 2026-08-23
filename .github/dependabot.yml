@@ -1,4 +1,12 @@
 version: 2
+
+# Tres ecossistemas, todos semanais e com 5 dias de cooldown: uma versao recem
+# publicada espera esse prazo antes de virar PR, o que filtra release quebrada e
+# pacote comprometido que e despublicado nas primeiras horas.
+#
+# Minor e patch entram agrupados por tipo de dependencia — um PR por grupo, nao
+# um por pacote. Major fica de fora dos grupos de proposito: cada um vira PR
+# individual, porque major exige leitura de changelog.
 updates:
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -10,3 +18,44 @@ updates:
       github-actions:
         patterns:
           - "*"
+
+  - package-ecosystem: "composer"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 5
+    open-pull-requests-limit: 5
+    groups:
+      composer-producao:
+        dependency-type: "production"
+        update-types:
+          - "minor"
+          - "patch"
+      composer-desenvolvimento:
+        dependency-type: "development"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # O lockfile de verdade e o package-lock.json. O pnpm-workspace.yaml na raiz
+  # so existe pelo publicHoistPattern do @inertiajs/core e nao tem lock proprio,
+  # entao o ecossistema correto aqui e npm.
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 5
+    open-pull-requests-limit: 5
+    groups:
+      npm-producao:
+        dependency-type: "production"
+        update-types:
+          - "minor"
+          - "patch"
+      npm-desenvolvimento:
+        dependency-type: "development"
+        update-types:
+          - "minor"
+          - "patch"

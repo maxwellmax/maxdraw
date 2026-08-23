@@ -1,0 +1,49 @@
+name: Bug
+description: Algo que não funciona como deveria
+labels: ["bug"]
+body:
+  - type: textarea
+    id: o-que-acontece
+    attributes:
+      label: O que acontece
+      description: O comportamento que você viu, não o que você acha que causou.
+    validations:
+      required: true
+
+  - type: textarea
+    id: esperado
+    attributes:
+      label: O que deveria acontecer
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproducao
+    attributes:
+      label: Como reproduzir
+      placeholder: |
+        1. Abro a prancheta em ...
+        2. Clico em ...
+        3. Vejo ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: ambiente
+    attributes:
+      label: Ambiente
+      description: Versão do PHP e do Node, navegador, e se está rodando no host ou via Docker.
+      value: |
+        - PHP:
+        - Node:
+        - Navegador:
+        - Trilha: host / Docker
+    validations:
+      required: true
+
+  - type: textarea
+    id: erro
+    attributes:
+      label: Erro no console ou no log
+      description: Console do navegador, `storage/logs/laravel.log`, ou a saída do teste que falha.
+      render: text

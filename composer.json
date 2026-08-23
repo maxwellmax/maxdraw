@@ -62,8 +62,13 @@
         "lint:check": [
             "pint --parallel --test"
         ],
+        "security:check": [
+            "@composer audit --locked --abandoned=report",
+            "npm audit --audit-level=high"
+        ],
         "ci:check": [
             "Composer\\Config::disableProcessTimeout",
+            "@security:check",
             "npm run lint:check",
             "npm run format:check",
             "npm run types:check",
