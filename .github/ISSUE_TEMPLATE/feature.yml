@@ -1,0 +1,32 @@
+name: Ideia ou melhoria
+description: Sugerir algo novo ou uma mudança de comportamento
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A ferramenta é uma **bancada de treino para entrevistas de system design** —
+        enunciado, cronômetro por fases, vocabulário fechado de componentes, checklist
+        e estimativas. Ela **não avalia** o treino: não há nota, revisor automático
+        nem IA julgando o desenho. Ideias que empurram nessa direção provavelmente
+        não entram — vale ler o `README.md` antes de abrir.
+
+  - type: textarea
+    id: problema
+    attributes:
+      label: Que problema isso resolve
+      description: O atrito real no treino, antes da solução proposta.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposta
+    attributes:
+      label: O que você propõe
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternativas
+    attributes:
+      label: Alternativas que você considerou
