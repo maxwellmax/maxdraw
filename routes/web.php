@@ -3,13 +3,14 @@
 use App\Http\Controllers\BoardController;
 use App\Http\Controllers\TrainingSessionController;
 use Illuminate\Support\Facades\Route;
+use Laravel\Fortify\Http\Controllers\AuthenticatedSessionController;
 
-Route::inertia('/', 'Welcome')->name('home');
+Route::get('/', [AuthenticatedSessionController::class, 'create'])
+    ->middleware('guest:'.config('fortify.guard'))
+    ->name('home');
 
 Route::middleware('auth')->group(function () {
     Route::get('prancheta', BoardController::class)->name('board');
-
-    Route::inertia('dashboard', 'Dashboard')->name('dashboard');
 
     Route::prefix('api')->name('sessions.')->group(function () {
         Route::get('sessions', [TrainingSessionController::class, 'index'])->name('index');
