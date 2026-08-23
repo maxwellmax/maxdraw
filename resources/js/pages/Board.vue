@@ -23,6 +23,7 @@ import DrillClock from '@/components/prancheta/DrillClock.vue';
 import DrillPanel from '@/components/prancheta/DrillPanel.vue';
 import EdgeChip from '@/components/prancheta/EdgeChip.vue';
 import EdgeFloatBar from '@/components/prancheta/EdgeFloatBar.vue';
+import EstimatePanel from '@/components/prancheta/EstimatePanel.vue';
 import LegendContent from '@/components/prancheta/LegendContent.vue';
 import ModalSheet from '@/components/prancheta/ModalSheet.vue';
 import NarrowNotice from '@/components/prancheta/NarrowNotice.vue';
@@ -45,6 +46,7 @@ import {
     durationsFrom,
     phaseSegments,
 } from '@/prancheta/clock';
+import type { EstimateFieldKey } from '@/prancheta/estimate';
 import {
     opensPickerOnLoad,
     PICKER_DELAY_MS,
@@ -296,6 +298,19 @@ function pickProblem(problemId: number | null): void {
     openSheet.value = null;
 }
 
+/**
+ * O modo da calculadora é campo da sessão como qualquer outro: escolher grava
+ * e sobe pelo mesmo autosave, e os campos comuns atravessam a troca porque
+ * ninguém os toca (US-7.2).
+ */
+function pickEstimateMode(slug: string): void {
+    store.setEstimate({ mode: slug });
+}
+
+function setEstimateField(key: EstimateFieldKey, value: number): void {
+    store.setEstimate({ [key]: value });
+}
+
 function pickPhase(index: number): void {
     phaseChoice.value = toggleChoice(
         phaseChoice.value,
@@ -520,6 +535,15 @@ function placeNode(slug: string): void {
                         :phases="roteiro"
                         @toggle-phase="pickPhase"
                         @toggle-item="toggleCheck"
+                    />
+                </template>
+
+                <template #calc>
+                    <EstimatePanel
+                        :estimate="store.estimate"
+                        :modes="catalog.estimate_modes"
+                        @pick-mode="pickEstimateMode"
+                        @update-field="setEstimateField"
                     />
                 </template>
 

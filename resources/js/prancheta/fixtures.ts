@@ -1,4 +1,5 @@
 import type { SessionDurationOption } from './clock';
+import type { EstimateModeOption } from './estimate';
 import type { ProblemOption } from './problems';
 import type { SessionStorage } from './resume';
 import type { RoteiroPhase } from './roteiro';
@@ -295,6 +296,29 @@ export function problemOptionsFixture(): ProblemOption[] {
                 'Permissões de compartilhamento herdadas na árvore',
                 'Cliente mantém um journal local para trabalhar offline',
             ],
+        },
+    ];
+}
+
+/**
+ * Os dois modos da calculadora como o catálogo os entrega, com a linha que
+ * cada um destaca. `tests/Feature/Frontend/DrillEstimateTest.php` confere a
+ * fixture contra o `EstimateModeSeeder` — o destaque é testado contra o
+ * catálogo de verdade, não contra uma cópia no cliente.
+ */
+export function estimateModeOptionsFixture(): EstimateModeOption[] {
+    return [
+        {
+            id: 1,
+            slug: 'user',
+            name: 'Por usuários',
+            highlighted_row: 'Escritas por dia',
+        },
+        {
+            id: 2,
+            slug: 'month',
+            name: 'Por volume mensal',
+            highlighted_row: 'Escritas por mês',
         },
     ];
 }

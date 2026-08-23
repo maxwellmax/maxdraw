@@ -34,3 +34,12 @@ O protótipo cria uma sessão nova ao escolher um problema; aqui `problem_id` en
 Consequências: rascunho local antigo sem a chave cai em `problem_id ?? null` no `recordFrom`/`bodyFromPayload`; a `Board.vue` fala só `problemId` em camelCase porque `CanvasNavigationTest` proíbe a string `problem_id` na página.
 
 O gabarito (`details` em ProblemBrief.vue) não tem estado persistido de propósito: `:key="problem.id"` e a ausência de `open` são o que devolvem o bloco ao colapsado a cada carregamento e a cada troca de enunciado (US-10.1). `NoDiagramEvaluationTest` varre rotas, respostas e `app/` por vocabulário de avaliação — nada na aplicação pode julgar o desenho.
+
+## Estimativas: destaque casado por rótulo, campo não reescrito enquanto se digita
+`prancheta/estimate.ts` é a calculadora inteira: os dois modos divergem só na primeira conta (`per_month / 30` ou `dau × act`) e o resto é derivado dela — é isso que faz as dez linhas serem as mesmas nos dois modos, na mesma ordem. `MONTH_DAYS = 30` é convenção de entrevista, não calendário.
+
+Nenhum modo mora no cliente: `estimate_modes` traz nome e `highlighted_row`, e o destaque é o casamento do `highlighted_row` com o `label` da linha (mais `peak_qps`/`retention`, sempre destacadas). Consequência: mudar o texto de uma linha em `estimate.ts` sem mudar o seeder apaga o destaque em silêncio — `DrillEstimateTest` trava os dois lados.
+
+Toda entrada passa por `sanitize()` (negativo → 0, não-finito → 0) antes da conta, e `formatNumber`/`formatBytes` devolvem `—` para não-finito: `NaN` e `Infinity` nunca chegam à tela.
+
+`EstimateField.vue` não usa `v-model`. Ele guarda o texto digitado em `draft` e só o reescreve quando `keepsDraft()` diz que deixou de representar o valor gravado — sem reescrever o campo, recalcular a cada tecla não mexe no foco nem no cursor ("1." continua "1." enquanto a saída já conta com 1). O protótipo resolvia isso re-renderizando e restaurando `selectionStart` à mão; aqui a solução é não tocar no campo.

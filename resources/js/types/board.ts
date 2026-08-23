@@ -3,6 +3,7 @@ import type { LinkType } from '@/canvas/links';
 import type { SequenceModeOption } from '@/canvas/sequence';
 import type { Edge, Node } from '@/canvas/types';
 import type { SessionDurationOption } from '@/prancheta/clock';
+import type { EstimateModeOption } from '@/prancheta/estimate';
 import type { ProblemOption } from '@/prancheta/problems';
 import type { RoteiroPhase } from '@/prancheta/roteiro';
 
@@ -26,10 +27,7 @@ export type SessionPayload = {
     updated_at: string | null;
 };
 
-/**
- * O catálogo do `CatalogService`. As listas que ainda não têm consumidor ficam
- * como `unknown[]` — cada fase tipa a sua quando passa a lê-la.
- */
+/** O catálogo do `CatalogService`, como a prancheta o consome. */
 export type BoardCatalog = {
     problems: ProblemOption[];
     component_categories: CatalogCategory[];
@@ -37,5 +35,5 @@ export type BoardCatalog = {
     phases: RoteiroPhase[];
     sequence_modes: SequenceModeOption[];
     session_durations: SessionDurationOption[];
-    estimate_modes: unknown[];
+    estimate_modes: EstimateModeOption[];
 };
