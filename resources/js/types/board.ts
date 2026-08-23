@@ -1,5 +1,6 @@
 import type { CatalogCategory } from '@/canvas/catalog';
 import type { LinkType } from '@/canvas/links';
+import type { SequenceModeOption } from '@/canvas/sequence';
 import type { Edge, Node } from '@/canvas/types';
 
 /**
@@ -31,7 +32,7 @@ export type BoardCatalog = {
     component_categories: CatalogCategory[];
     link_types: LinkType[];
     phases: unknown[];
-    sequence_modes: unknown[];
+    sequence_modes: SequenceModeOption[];
     session_durations: unknown[];
     estimate_modes: unknown[];
 };

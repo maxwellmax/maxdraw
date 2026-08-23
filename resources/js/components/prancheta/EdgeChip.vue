@@ -1,16 +1,21 @@
 <script setup lang="ts">
 import { computed, nextTick, ref } from 'vue';
 import { labelRoomLeft } from '@/canvas/labels';
+import type { SequenceNumber } from '@/canvas/sequence';
 
-const props = defineProps<{
-    edgeId: string;
-    badge: string;
-    label: string;
-    bare: boolean;
-    color: string;
-    x: number;
-    y: number;
-}>();
+const props = withDefaults(
+    defineProps<{
+        edgeId: string;
+        badge: string;
+        label: string;
+        bare: boolean;
+        color: string;
+        x: number;
+        y: number;
+        seq?: SequenceNumber | null;
+    }>(),
+    { seq: null },
+);
 
 const emit = defineEmits<{
     rename: [label: string];
@@ -130,6 +135,17 @@ defineExpose({ beginEdit });
         :style="style"
         @dblclick.stop="beginEdit"
     >
+        <b
+            v-if="seq"
+            data-testid="edge-chip-seq"
+            class="grid size-[15px] flex-none place-items-center rounded-full bg-sd-paper text-[9px] leading-none font-semibold tabular-nums"
+            :style="{
+                border: '1.2px solid var(--ec)',
+                color: 'var(--ec)',
+            }"
+            v-text="seq.index"
+        ></b>
+
         <b
             v-if="badge"
             data-testid="edge-chip-badge"

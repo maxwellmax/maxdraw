@@ -27,6 +27,12 @@ export type CatalogEntry = {
 /** O componente e a categoria dele, por slug do componente. */
 export type ComponentIndex = Map<string, CatalogEntry>;
 
+/**
+ * A categoria de quem usa o sistema. É a única que o motor precisa reconhecer
+ * pelo nome: a numeração do fluxo inteiro começa pelo cliente (US-4.3).
+ */
+export const CLIENT_CATEGORY = 'client';
+
 export function indexComponents(
     categories: readonly CatalogCategory[],
 ): ComponentIndex {
@@ -51,4 +57,15 @@ export function colorOf(index: ComponentIndex, slug: string): string {
 
 export function shortNameOf(index: ComponentIndex, slug: string): string {
     return index.get(slug)?.component.short_name ?? slug;
+}
+
+export function categoryOf(index: ComponentIndex, slug: string): string {
+    return index.get(slug)?.category.slug ?? '';
+}
+
+export function isClientComponent(
+    index: ComponentIndex,
+    slug: string,
+): boolean {
+    return categoryOf(index, slug) === CLIENT_CATEGORY;
 }

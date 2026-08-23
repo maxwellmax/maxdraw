@@ -1,16 +1,46 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { onClickOutside } from '@vueuse/core';
+import { computed, ref } from 'vue';
+import type { SequenceMenuItem } from '@/canvas/sequence';
+import type { SequenceMode } from '@/canvas/types';
+import SequenceMenu from '@/components/prancheta/SequenceMenu.vue';
 
-const props = withDefaults(defineProps<{ scale?: number }>(), { scale: 1 });
+const props = withDefaults(
+    defineProps<{
+        scale?: number;
+        sequenceMode?: SequenceMode;
+        sequenceModes?: SequenceMenuItem[];
+    }>(),
+    { scale: 1, sequenceMode: 'out', sequenceModes: () => [] },
+);
 
-defineEmits<{
+const emit = defineEmits<{
     'zoom-in': [];
     'zoom-out': [];
     fit: [];
-    'cycle-sequence': [];
+    'pick-sequence': [mode: SequenceMode];
 }>();
 
 const percent = computed(() => `${Math.round(props.scale * 100)}%`);
+
+const menuOpen = ref(false);
+
+const seqButton = ref<HTMLElement | null>(null);
+
+/**
+ * A barra de zoom nunca sai da tela, então o menu dela precisa se fechar
+ * sozinho: sem isso ele ficaria aberto sobre o palco depois de o usuário
+ * desistir. O menu de tipo não precisa — ele some junto com a seta selecionada.
+ */
+onClickOutside(seqButton, () => (menuOpen.value = false));
+
+/** O botão fica aceso enquanto houver número desenhado (US-4.3). */
+const numbering = computed(() => props.sequenceMode !== 'off');
+
+function pickSequence(mode: SequenceMode): void {
+    menuOpen.value = false;
+    emit('pick-sequence', mode);
+}
 </script>
 
 <template>
@@ -82,16 +112,31 @@ const percent = computed(() => `${Math.round(props.scale * 100)}%`);
             </svg>
         </button>
         <span class="mx-[3px] h-4 w-px bg-sd-line"></span>
-        <button
-            type="button"
-            data-testid="sequence-mode"
-            title="Numeração das setas"
-            class="grid size-[26px] cursor-pointer place-items-center rounded-[5px] text-sd-ink-2 hover:bg-sd-panel-2 hover:text-sd-ink"
-            @click="$emit('cycle-sequence')"
-        >
-            <span class="font-mono text-[10px] font-semibold tracking-[-0.02em]"
-                >1&#8594;2</span
+        <div ref="seqButton" class="relative">
+            <button
+                type="button"
+                data-testid="sequence-mode"
+                title="Numeração das setas"
+                :class="[
+                    'grid size-[26px] cursor-pointer place-items-center rounded-[5px] hover:bg-sd-panel-2 hover:text-sd-ink',
+                    numbering
+                        ? 'bg-sd-accent-soft text-sd-accent'
+                        : 'text-sd-ink-2',
+                ]"
+                @click="menuOpen = !menuOpen"
             >
-        </button>
+                <span
+                    class="font-mono text-[10px] font-semibold tracking-[-0.02em]"
+                    >1&#8594;2</span
+                >
+            </button>
+
+            <SequenceMenu
+                v-if="menuOpen"
+                :options="sequenceModes"
+                :mode="sequenceMode"
+                @pick="pickSequence"
+            />
+        </div>
     </div>
 </template>

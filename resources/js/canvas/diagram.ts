@@ -1,4 +1,5 @@
 import type { CatalogComponent } from './catalog';
+import { edgeOk } from './edges';
 import { NODE_HEIGHT, NODE_WIDTH } from './geometry';
 import { clampLabel, normalizeLabel } from './labels';
 import { freeSpot, snap } from './layout';
@@ -224,6 +225,47 @@ export function reverseEdge(state: SessionState, id: string): boolean {
     }
 
     [edge.from, edge.to] = [edge.to, edge.from];
+
+    return true;
+}
+
+/**
+ * Antecipa (`-1`) ou adia (`+1`) a aresta na ordem de saída do bloco de
+ * origem. Como a ordem é a posição no array `edges`, mover é trocar de lugar
+ * com a saída vizinha **do mesmo bloco** — as arestas dos outros blocos ficam
+ * onde estão. Na primeira saída não há para onde recuar, e na última não há
+ * para onde avançar (US-4.4).
+ */
+export function moveSeq(
+    state: SessionState,
+    id: string,
+    direction: number,
+): boolean {
+    const edge = edgeById(state.edges, id);
+
+    if (!edge || !edgeOk(edge, state.nodes)) {
+        return false;
+    }
+
+    const siblings = state.edges.flatMap((candidate, position) =>
+        candidate.from === edge.from && edgeOk(candidate, state.nodes)
+            ? [position]
+            : [],
+    );
+
+    const from = siblings.indexOf(state.edges.indexOf(edge));
+    const to = from + direction;
+
+    if (from < 0 || to < 0 || to >= siblings.length) {
+        return false;
+    }
+
+    const [here, there] = [siblings[from], siblings[to]];
+
+    [state.edges[here], state.edges[there]] = [
+        state.edges[there],
+        state.edges[here],
+    ];
 
     return true;
 }

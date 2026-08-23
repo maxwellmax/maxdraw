@@ -4,7 +4,7 @@ import type { ComponentPublicInstance } from 'vue';
 import { computed, nextTick, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import { CanvasEngine } from '@/canvas/engine';
 import { ptAt } from '@/canvas/geometry';
-import type { EdgeFlag, RefusalReason, SequenceMode } from '@/canvas/types';
+import type { EdgeFlag, RefusalReason } from '@/canvas/types';
 import { LEGEND_WIDTH } from '@/canvas/view';
 import BoardTopBar from '@/components/prancheta/BoardTopBar.vue';
 import CanvasNode from '@/components/prancheta/CanvasNode.vue';
@@ -53,6 +53,7 @@ const engine = reactive(
         store.state,
         props.catalog.component_categories,
         props.catalog.link_types,
+        props.catalog.sequence_modes,
     ),
 ) as CanvasEngine;
 
@@ -93,13 +94,20 @@ watch(
     (linkTypes) => engine.setLinkTypes(linkTypes),
 );
 
+watch(
+    () => props.catalog.sequence_modes,
+    (modes) => engine.setSequenceModes(modes),
+);
+
 /**
  * As setas desenhadas. A aresta órfã que sobrou de um desfazer parcial fica de
  * fora do desenho sem sair do estado, e a cor vem sempre da categoria do bloco
  * de origem — nunca do tipo da ligação (US-4.1).
  */
-const wires = computed(() =>
-    engine.liveEdges().flatMap((edge) => {
+const wires = computed(() => {
+    const numbers = engine.seqMap();
+
+    return engine.liveEdges().flatMap((edge) => {
         const geometry = engine.geometry(edge);
 
         if (!geometry) {
@@ -119,12 +127,13 @@ const wires = computed(() =>
                 color: engine.edgeColor(edge),
                 selected: engine.isSelected('edge', edge.id),
                 chip,
+                seq: numbers[edge.id] ?? null,
                 midX,
                 midY,
             },
         ];
-    }),
-);
+    });
+});
 
 const selectedEdge = computed(() =>
     engine.selection?.kind === 'edge' ? engine.edge(engine.selection.id) : null,
@@ -142,7 +151,12 @@ const edgeBar = computed(() => {
         return null;
     }
 
-    return { edge, anchor, badge: engine.edgeChip(edge).badge };
+    return {
+        edge,
+        anchor,
+        badge: engine.edgeChip(edge).badge,
+        seq: engine.outSeq()[edge.id] ?? null,
+    };
 });
 
 const sheetTitle = computed(() =>
@@ -254,17 +268,6 @@ function placeNode(slug: string): void {
 
     editNode(result.value.id);
 }
-
-const SEQUENCE_CYCLE: SequenceMode[] = ['out', 'flow', 'off'];
-
-function cycleSequenceMode(): void {
-    const next =
-        SEQUENCE_CYCLE[
-            (SEQUENCE_CYCLE.indexOf(engine.seqMode) + 1) % SEQUENCE_CYCLE.length
-        ];
-
-    engine.setSequenceMode(next);
-}
 </script>
 
 <template>
@@ -301,10 +304,12 @@ function cycleSequenceMode(): void {
                 :offset-x="engine.view.x"
                 :offset-y="engine.view.y"
                 :legend-visible="!engine.isEmpty"
+                :sequence-mode="engine.seqMode"
+                :sequence-modes="engine.sequenceModes"
                 @zoom-in="engine.zoomBy(1.2)"
                 @zoom-out="engine.zoomBy(1 / 1.2)"
                 @fit="engine.fit()"
-                @cycle-sequence="cycleSequenceMode"
+                @pick-sequence="engine.setSequenceMode($event)"
             >
                 <template #wires>
                     <CanvasWire
@@ -356,6 +361,7 @@ function cycleSequenceMode(): void {
                         :badge="wire.chip.badge"
                         :label="wire.chip.label"
                         :bare="wire.chip.bare"
+                        :seq="wire.seq"
                         :color="wire.color"
                         :x="wire.midX"
                         :y="wire.midY"
@@ -374,6 +380,7 @@ function cycleSequenceMode(): void {
                         :badge="edgeBar.badge"
                         :dashed="edgeBar.edge.dashed"
                         :bidir="edgeBar.edge.bidir"
+                        :seq="edgeBar.seq"
                         @pick-kind="pickEdgeKind(edgeBar.edge.id, $event)"
                         @edit-label="editEdgeLabel(edgeBar.edge.id)"
                         @toggle="
@@ -383,6 +390,7 @@ function cycleSequenceMode(): void {
                             )
                         "
                         @reverse="engine.reverseEdge(edgeBar.edge.id)"
+                        @move-seq="engine.moveSeq(edgeBar.edge.id, $event)"
                         @remove="engine.deleteSelection()"
                     />
                 </template>

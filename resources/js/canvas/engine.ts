@@ -9,6 +9,7 @@ import {
     addEdge,
     addNode,
     moveNode,
+    moveSeq,
     removeEdge,
     removeNode,
     renameNode,
@@ -25,6 +26,12 @@ import { bez, ghostCurve, head, NODE_HEIGHT, ptAt } from './geometry';
 import type { LinkType, LinkTypeIndex } from './links';
 import { indexLinkTypes, linkTypeOf } from './links';
 import { edgeById, nodeById, nodeHeight } from './nodes';
+import type {
+    SequenceMap,
+    SequenceMenuItem,
+    SequenceModeOption,
+} from './sequence';
+import { outSeq, seqMap, sequenceMenu, sequenceModeOf } from './sequence';
 import type {
     ArrowHead,
     Edge,
@@ -95,14 +102,18 @@ export class CanvasEngine {
 
     private linkDrag: LinkDrag | null = null;
 
+    private sequenceModeOptions: readonly SequenceModeOption[] = [];
+
     constructor(
         state: SessionState,
         categories: readonly CatalogCategory[] = [],
         linkTypes: readonly LinkType[] = [],
+        sequenceModes: readonly SequenceModeOption[] = [],
     ) {
         this.state = state;
         this.index = indexComponents(categories);
         this.linkIndex = indexLinkTypes(linkTypes);
+        this.sequenceModeOptions = sequenceModes;
     }
 
     get nodes(): Node[] {
@@ -114,7 +125,12 @@ export class CanvasEngine {
     }
 
     get seqMode(): SequenceMode {
-        return this.state.seqMode;
+        return sequenceModeOf(this.state.seqMode);
+    }
+
+    /** As três opções do menu de numeração, na ordem em que a lista as mostra. */
+    get sequenceModes(): SequenceMenuItem[] {
+        return sequenceMenu(this.sequenceModeOptions);
     }
 
     get isEmpty(): boolean {
@@ -156,6 +172,10 @@ export class CanvasEngine {
 
     setLinkTypes(linkTypes: readonly LinkType[]): void {
         this.linkIndex = indexLinkTypes(linkTypes);
+    }
+
+    setSequenceModes(modes: readonly SequenceModeOption[]): void {
+        this.sequenceModeOptions = modes;
     }
 
     setSize(size: Size): void {
@@ -504,12 +524,41 @@ export class CanvasEngine {
         return moved;
     }
 
+    /**
+     * O número de cada seta no modo corrente. Mudar de modo não desenha nada
+     * novo: os números saem do mesmo diagrama, lidos de outro jeito (US-4.3).
+     */
+    seqMap(): SequenceMap {
+        return seqMap(
+            this.state.seqMode,
+            this.state.edges,
+            this.state.nodes,
+            this.index,
+        );
+    }
+
+    /**
+     * A ordem de saída de cada bloco, que é o que os botões `‹ ›` reordenam.
+     * Vale mesmo com a numeração desligada: a ordem existe no desenho, o modo
+     * só decide se ela aparece (US-4.4).
+     */
+    outSeq(): SequenceMap {
+        return outSeq(this.state.edges, this.state.nodes);
+    }
+
+    moveSeq(id: string, direction: number): boolean {
+        return this.mutateEdge(() => moveSeq(this.state, id, direction));
+    }
+
+    /** Trocar de modo é ajuste de visualização: não empilha desfazer (US-4.3). */
     setSequenceMode(mode: SequenceMode): boolean {
-        if (this.state.seqMode === mode) {
+        const next = sequenceModeOf(mode);
+
+        if (this.state.seqMode === next) {
             return false;
         }
 
-        this.state.seqMode = mode;
+        this.state.seqMode = next;
 
         return true;
     }

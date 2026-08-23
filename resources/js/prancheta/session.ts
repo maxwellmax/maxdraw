@@ -1,3 +1,4 @@
+import { sequenceModeOf } from '@/canvas/sequence';
 import type { Edge, Node, SequenceMode, SessionState } from '@/canvas/types';
 import type { SessionPayload } from '@/types/board';
 
@@ -77,11 +78,6 @@ export function bodyFromPayload(payload: SessionPayload): SessionBody {
         seq_mode: sequenceModeOf(payload.seq_mode),
         estimate: estimateFrom(payload.estimate),
     };
-}
-
-/** Modo desconhecido vira o padrão do catálogo, nunca derruba a prancheta. */
-export function sequenceModeOf(mode: string): SequenceMode {
-    return mode === 'off' || mode === 'flow' ? mode : 'out';
 }
 
 function estimateFrom(

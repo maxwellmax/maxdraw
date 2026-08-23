@@ -24,3 +24,10 @@ Os nove tipos de ligação vêm do servidor (`catalog.link_types` → `engine.se
 `edgeColor` é sempre `colorOf(categoria do nó de origem)`. Inverter a seta recolore o selo por consequência, não por regra extra.
 
 Toda mudança de aresta (tipo, rótulo, tracejado, mão dupla, inversão) passa por `CanvasEngine.mutateEdge`, que é o único ponto que empilha desfazer.
+
+## Numeração: a ordem das saídas é a posição no array edges
+`sequence.ts` deriva tudo do desenho: nenhuma aresta guarda número e não existe campo de ordem no estado. A ordem de saída de um bloco é a posição da aresta em `state.edges` — por isso `moveSeq()` reordena o array trocando a aresta com a vizinha *de mesma origem* (as arestas dos outros blocos ficam onde estão), e por isso reordenar muda tanto `outSeq` quanto a travessia de `flowSeq`.
+
+`outSeq` só numera bloco com 2+ saídas válidas; `flowSeq` é DFS que começa pelo nó da categoria `client` sem entrada (`CLIENT_CATEGORY` em catalog.ts), marca cada aresta uma vez (é o que faz ciclo terminar) e cobre órfãos no fim.
+
+Reordenar é mutação de aresta: passa por `CanvasEngine.mutateEdge` e empilha desfazer. Trocar de modo NÃO empilha — é visualização (US-4.3), mas é persistido em `seq_mode`. Os nomes dos três modos vêm do catálogo do servidor (`sequence_modes`); o cliente só define a ordem do menu em `SEQUENCE_MENU` (off, out, flow), que é diferente da `position` do seeder (ordem do ciclo).

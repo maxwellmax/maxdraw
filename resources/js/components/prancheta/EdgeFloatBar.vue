@@ -2,26 +2,32 @@
 import { useResizeObserver } from '@vueuse/core';
 import { computed, ref, watch } from 'vue';
 import type { LinkType } from '@/canvas/links';
+import type { SequenceNumber } from '@/canvas/sequence';
 import type { EdgeFlag, Point, Size } from '@/canvas/types';
 import { floatBarSpot } from '@/canvas/view';
 import LinkKindMenu from '@/components/prancheta/LinkKindMenu.vue';
 
-const props = defineProps<{
-    edgeId: string;
-    anchor: Point;
-    stage: Size;
-    types: LinkType[];
-    kind: string | null;
-    badge: string;
-    dashed: boolean;
-    bidir: boolean;
-}>();
+const props = withDefaults(
+    defineProps<{
+        edgeId: string;
+        anchor: Point;
+        stage: Size;
+        types: LinkType[];
+        kind: string | null;
+        badge: string;
+        dashed: boolean;
+        bidir: boolean;
+        seq?: SequenceNumber | null;
+    }>(),
+    { seq: null },
+);
 
 const emit = defineEmits<{
     'pick-kind': [kind: string | null];
     'edit-label': [];
     toggle: [flag: EdgeFlag];
     reverse: [];
+    'move-seq': [direction: number];
     remove: [];
 }>();
 
@@ -175,6 +181,59 @@ function pickKind(kind: string | null): void {
                 <path d="M4 8h13l-3-3M20 16H7l3 3" />
             </svg>
         </button>
+
+        <template v-if="seq">
+            <span class="mx-[3px] h-4 w-px bg-sd-line"></span>
+
+            <button
+                type="button"
+                data-testid="edge-seq-back"
+                title="Antes na sequência de saída"
+                class="inline-flex h-[26px] min-w-[26px] cursor-pointer items-center justify-center rounded-[5px] px-[7px] text-sd-ink-2 hover:bg-sd-panel-2 hover:text-sd-ink disabled:cursor-default disabled:opacity-35 disabled:hover:bg-transparent disabled:hover:text-sd-ink-2 [&_svg]:size-3.5"
+                :disabled="seq.index <= 1"
+                @click="emit('move-seq', -1)"
+            >
+                <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.1"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                >
+                    <path d="M14.5 5.5 8 12l6.5 6.5" />
+                </svg>
+            </button>
+
+            <span
+                data-testid="edge-seq-position"
+                title="Ordem em que o bloco dispara esta saída"
+                class="min-w-[26px] px-px text-center font-mono text-[11px] text-sd-ink-3 tabular-nums"
+                >{{ seq.index }}/{{ seq.total }}</span
+            >
+
+            <button
+                type="button"
+                data-testid="edge-seq-forward"
+                title="Depois na sequência de saída"
+                class="inline-flex h-[26px] min-w-[26px] cursor-pointer items-center justify-center rounded-[5px] px-[7px] text-sd-ink-2 hover:bg-sd-panel-2 hover:text-sd-ink disabled:cursor-default disabled:opacity-35 disabled:hover:bg-transparent disabled:hover:text-sd-ink-2 [&_svg]:size-3.5"
+                :disabled="seq.index >= seq.total"
+                @click="emit('move-seq', 1)"
+            >
+                <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.1"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                >
+                    <path d="M9.5 5.5 16 12l-6.5 6.5" />
+                </svg>
+            </button>
+        </template>
 
         <span class="mx-[3px] h-4 w-px bg-sd-line"></span>
 
