@@ -1,12 +1,15 @@
 import type { CatalogComponent } from './catalog';
 import { NODE_HEIGHT, NODE_WIDTH } from './geometry';
-import { normalizeLabel } from './labels';
+import { clampLabel, normalizeLabel } from './labels';
 import { freeSpot, snap } from './layout';
 import { MAX_EDGES, MAX_NODES } from './limits';
+import type { LinkTypeIndex } from './links';
+import { dashArrayOf, isBidirectionalByDefault } from './links';
 import { edgeById, nodeById, nodeHeight } from './nodes';
 import type {
     DiagramSnapshot,
     Edge,
+    EdgeFlag,
     MutationResult,
     Node,
     NodeHeights,
@@ -140,6 +143,87 @@ export function renameNode(
     }
 
     node.label = next;
+
+    return true;
+}
+
+/**
+ * Escolhe o tipo da ligação. O tipo dita o traço e, no WebSocket, a mão dupla;
+ * a partir daí as duas bandeiras seguem alternáveis na mão do usuário. "Sem
+ * tipo" limpa o selo e devolve o traço contínuo (US-4.1).
+ */
+export function setEdgeKind(
+    state: SessionState,
+    id: string,
+    kind: string | null,
+    links: LinkTypeIndex,
+): boolean {
+    const edge = edgeById(state.edges, id);
+    const next = kind === '' ? null : kind;
+
+    if (!edge || edge.kind === next) {
+        return false;
+    }
+
+    edge.kind = next;
+    edge.dashed = dashArrayOf(links, next) !== null;
+
+    if (isBidirectionalByDefault(links, next)) {
+        edge.bidir = true;
+    }
+
+    return true;
+}
+
+export function setEdgeLabel(
+    state: SessionState,
+    id: string,
+    label: string,
+): boolean {
+    const edge = edgeById(state.edges, id);
+    const next = clampLabel(label);
+
+    if (!edge || edge.label === next) {
+        return false;
+    }
+
+    edge.label = next;
+
+    return true;
+}
+
+/**
+ * Alterna tracejado ou mão dupla. As duas são independentes do tipo: o tipo
+ * escolhe o valor inicial, o usuário escolhe o final (US-4.2).
+ */
+export function toggleEdgeFlag(
+    state: SessionState,
+    id: string,
+    flag: EdgeFlag,
+): boolean {
+    const edge = edgeById(state.edges, id);
+
+    if (!edge) {
+        return false;
+    }
+
+    edge[flag] = !edge[flag];
+
+    return true;
+}
+
+/**
+ * Inverte o sentido da seta. Trocar origem e destino troca também a cor da
+ * seta e a do selo, que herdam a categoria de quem passou a ser a origem.
+ */
+export function reverseEdge(state: SessionState, id: string): boolean {
+    const edge = edgeById(state.edges, id);
+
+    if (!edge) {
+        return false;
+    }
+
+    [edge.from, edge.to] = [edge.to, edge.from];
 
     return true;
 }

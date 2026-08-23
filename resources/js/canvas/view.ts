@@ -26,8 +26,38 @@ export const WHEEL_ZOOM_RATIO = 0.0016;
 
 export const DEFAULT_VIEW: View = { x: 0, y: 0, k: 1 };
 
+/** A folga entre a barra flutuante e a borda do palco, e dela até o apoio. */
+export const FLOATBAR_GAP = 6;
+
+/** O quanto a barra flutuante sobe acima do meio da seta, em unidades de mundo. */
+export const FLOATBAR_LIFT = 24;
+
 export function toWorld(view: View, x: number, y: number): Point {
     return [(x - view.x) / view.k, (y - view.y) / view.k];
+}
+
+export function toScreen(view: View, x: number, y: number): Point {
+    return [x * view.k + view.x, y * view.k + view.y];
+}
+
+/**
+ * Onde a barra flutuante encosta: centrada sobre o apoio, logo acima dele e
+ * sempre dentro do palco — uma seta na borda não pode empurrar a barra para
+ * fora da tela.
+ */
+export function floatBarSpot(anchor: Point, stage: Size, bar: Size): Point {
+    return [
+        clamp(
+            anchor[0] - bar.width / 2,
+            FLOATBAR_GAP,
+            Math.max(FLOATBAR_GAP, stage.width - bar.width - FLOATBAR_GAP),
+        ),
+        clamp(
+            anchor[1] - bar.height - FLOATBAR_GAP,
+            FLOATBAR_GAP,
+            Math.max(FLOATBAR_GAP, stage.height - bar.height - FLOATBAR_GAP),
+        ),
+    ];
 }
 
 export function panBy(view: View, dx: number, dy: number): View {

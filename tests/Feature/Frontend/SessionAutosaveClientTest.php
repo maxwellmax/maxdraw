@@ -79,7 +79,7 @@ it('liga a prancheta ao store, ao autosave e ao botão de salvar agora', functio
     expect(frontendSource('pages/Board.vue'))
         ->toContain('createSessionStore(props.session)')
         ->toContain('useAutosave(store)')
-        ->toContain('new CanvasEngine(store.state,')
+        ->toMatch('/new CanvasEngine\(\s*store\.state,/')
         ->toContain(':save-state="autosave.chip"')
         ->toContain('@save="saveNow"');
 });

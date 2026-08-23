@@ -100,7 +100,7 @@ it('bloqueia o excedente de 60 caracteres na digitação', function () {
 
 it('volta ao nome curto quando o rótulo é esvaziado', function () {
     expect(frontendSource('canvas/labels.ts'))
-        ->toContain("return label === '' ? fallback.slice(0, MAX_LABEL_LENGTH) : label;");
+        ->toContain("return label === '' ? clampLabel(fallback) : label;");
 
     expect(frontendSource('canvas/engine.ts'))
         ->toMatch('/renameNode\(\s*this\.state,\s*id,\s*label,\s*this\.shortName\(node\.type\),?\s*\)/');

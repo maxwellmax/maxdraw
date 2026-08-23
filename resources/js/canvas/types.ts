@@ -21,6 +21,9 @@ export type Edge = {
     bidir: boolean;
 };
 
+/** As duas bandeiras que o usuário alterna à mão, independentes do tipo. */
+export type EdgeFlag = 'dashed' | 'bidir';
+
 export type SequenceMode = 'off' | 'out' | 'flow';
 
 /**
@@ -59,6 +62,18 @@ export type SelectionKind = 'node' | 'edge';
 export type Selection = {
     kind: SelectionKind;
     id: string;
+};
+
+/**
+ * O arrasto de ligação em curso: sai de uma das bolinhas do bloco de origem e
+ * segue o cursor até soltar. `target` é o bloco sob o ponteiro, nunca o próprio
+ * bloco de origem (US-3.3).
+ */
+export type LinkDrag = {
+    from: string;
+    x: number;
+    y: number;
+    target: string | null;
 };
 
 export type EdgeGeometry = {

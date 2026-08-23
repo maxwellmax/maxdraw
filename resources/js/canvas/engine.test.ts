@@ -3,17 +3,23 @@ import { CanvasEngine } from './engine';
 import {
     catalogFixture,
     edgeFixture,
+    linkTypesFixture,
     nodeFixture,
     stateFixture,
 } from './fixtures';
 import { NODE_WIDTH } from './geometry';
+import { MAX_EDGES } from './limits';
 import type { SessionState } from './types';
 import { MAX_SCALE, MIN_SCALE } from './view';
 
 const STAGE = { width: 1200, height: 800 };
 
 function engineWith(state: SessionState = stateFixture()): CanvasEngine {
-    const engine = new CanvasEngine(state, catalogFixture());
+    const engine = new CanvasEngine(
+        state,
+        catalogFixture(),
+        linkTypesFixture(),
+    );
 
     engine.setSize(STAGE);
 
@@ -129,6 +135,236 @@ describe('apagar', () => {
         const engine = engineWith(stateFixture([nodeFixture('a')]));
 
         expect(engine.deleteSelection()).toBe(false);
+        expect(engine.undoDepth).toBe(0);
+    });
+});
+
+describe('ligar', () => {
+    function linkable(): CanvasEngine {
+        return engineWith(
+            stateFixture([nodeFixture('a'), nodeFixture('b', 400)]),
+        );
+    }
+
+    it('desenha a curva fantasma da bolinha até o cursor', () => {
+        const engine = linkable();
+
+        expect(engine.ghost).toBeNull();
+
+        engine.beginLink('a', 66, 43);
+        engine.linkTo(300, 200);
+
+        expect(engine.isLinking).toBe(true);
+        expect(engine.ghost?.d).toMatch(/^M[\d.]+ [\d.]+C.* 300 200$/);
+    });
+
+    it('destaca o bloco sob o cursor, menos o próprio bloco de origem', () => {
+        const engine = linkable();
+
+        engine.beginLink('a', 66, 43);
+        engine.linkTo(430, 43, 'b');
+
+        expect(engine.linkTarget).toBe('b');
+
+        engine.linkTo(66, 43, 'a');
+
+        expect(engine.linkTarget).toBeNull();
+
+        engine.linkTo(900, 900, 'apagado');
+
+        expect(engine.linkTarget).toBeNull();
+    });
+
+    it('cria a aresta ao soltar sobre um bloco válido e já a seleciona', () => {
+        const engine = linkable();
+
+        engine.beginLink('a', 66, 43);
+        engine.linkTo(430, 43, 'b');
+
+        expect(engine.endLink()).toMatchObject({ ok: true });
+        expect(engine.edges).toHaveLength(1);
+        expect(engine.edges[0]).toMatchObject({ from: 'a', to: 'b' });
+        expect(engine.isSelected('edge', engine.edges[0].id)).toBe(true);
+        expect(engine.isLinking).toBe(false);
+        expect(engine.ghost).toBeNull();
+    });
+
+    it('soltar fora de qualquer bloco não cria nada', () => {
+        const engine = linkable();
+
+        engine.beginLink('a', 66, 43);
+        engine.linkTo(900, 700);
+
+        expect(engine.endLink()).toBeNull();
+        expect(engine.edges).toHaveLength(0);
+        expect(engine.undoDepth).toBe(0);
+    });
+
+    it('soltar sobre o próprio bloco de origem não cria nada', () => {
+        const engine = linkable();
+
+        engine.beginLink('a', 66, 43);
+        engine.linkTo(70, 50, 'a');
+
+        expect(engine.endLink()).toBeNull();
+        expect(engine.edges).toHaveLength(0);
+    });
+
+    it('recusa a ligação de número 401 com o motivo do aviso', () => {
+        const state = stateFixture([nodeFixture('a'), nodeFixture('b', 400)]);
+
+        for (let index = 0; index < MAX_EDGES; index++) {
+            state.edges.push(edgeFixture('e' + index, 'a', 'b'));
+        }
+
+        const engine = engineWith(state);
+
+        engine.beginLink('a', 66, 43);
+        engine.linkTo(430, 43, 'b');
+
+        expect(engine.endLink()).toEqual({
+            ok: false,
+            reason: 'edgeLimitReached',
+        });
+        expect(engine.edges).toHaveLength(MAX_EDGES);
+    });
+
+    it('cancelar o arrasto larga a ligação sem criar nada', () => {
+        const engine = linkable();
+
+        engine.beginLink('a', 66, 43);
+        engine.linkTo(430, 43, 'b');
+        engine.cancelLink();
+
+        expect(engine.isLinking).toBe(false);
+        expect(engine.edges).toHaveLength(0);
+    });
+
+    it('a seta acompanha o bloco arrastado', () => {
+        const engine = engineWith(
+            stateFixture(
+                [nodeFixture('a'), nodeFixture('b', 400)],
+                [edgeFixture('e1', 'a', 'b')],
+            ),
+        );
+        const before = engine.geometry(engine.edge('e1')!)!.x1;
+
+        engine.beginDrag('a', 0, 0);
+        engine.dragTo(120, 60);
+
+        expect(engine.geometry(engine.edge('e1')!)!.x1).not.toBe(before);
+    });
+});
+
+describe('tipo e bandeiras da ligação', () => {
+    function typed(): CanvasEngine {
+        return engineWith(
+            stateFixture(
+                [
+                    nodeFixture('a', 0, 0, 'api'),
+                    nodeFixture('b', 400, 0, 'sql'),
+                ],
+                [edgeFixture('e1', 'a', 'b')],
+            ),
+        );
+    }
+
+    it('choosing_ws_sets_bidirectional', () => {
+        const engine = typed();
+
+        engine.setEdgeKind('e1', 'ws');
+
+        expect(engine.edge('e1')).toMatchObject({
+            kind: 'ws',
+            bidir: true,
+            dashed: false,
+        });
+
+        engine.toggleEdgeFlag('e1', 'bidir');
+
+        expect(engine.edge('e1')?.bidir).toBe(false);
+        expect(engine.edge('e1')?.kind).toBe('ws');
+    });
+
+    it('lista os nove tipos na ordem do catálogo', () => {
+        expect(typed().linkTypes.map((type) => type.slug)).toEqual([
+            'http',
+            'grpc',
+            'ws',
+            'event',
+            'query',
+            'cache',
+            'repl',
+            'batch',
+            'retry',
+        ]);
+    });
+
+    it('edge_label_is_capped_at_60_characters', () => {
+        const engine = typed();
+
+        engine.setEdgeLabel('e1', 'x'.repeat(80));
+
+        expect(engine.edge('e1')?.label).toHaveLength(60);
+
+        engine.setEdgeLabel('e1', '  GET /feed  ');
+
+        expect(engine.edge('e1')?.label).toBe('GET /feed');
+    });
+
+    it('reversing_edge_swaps_endpoints_and_recolors_badge', () => {
+        const engine = typed();
+
+        engine.setEdgeKind('e1', 'query');
+
+        expect(engine.edgeColor(engine.edge('e1')!)).toBe('var(--c-compute)');
+
+        engine.reverseEdge('e1');
+
+        expect(engine.edge('e1')).toMatchObject({ from: 'b', to: 'a' });
+        expect(engine.edgeColor(engine.edge('e1')!)).toBe('var(--c-data)');
+        expect(engine.edgeChip(engine.edge('e1')!).badge).toBe('query');
+    });
+
+    it('type_and_flag_changes_push_undo', () => {
+        const engine = typed();
+
+        engine.setEdgeKind('e1', 'event');
+        engine.setEdgeLabel('e1', 'GET /feed');
+        engine.toggleEdgeFlag('e1', 'dashed');
+        engine.toggleEdgeFlag('e1', 'bidir');
+        engine.reverseEdge('e1');
+
+        expect(engine.undoDepth).toBe(5);
+
+        engine.undo();
+
+        expect(engine.edge('e1')).toMatchObject({ from: 'a', to: 'b' });
+
+        engine.undo();
+        engine.undo();
+        engine.undo();
+
+        expect(engine.edge('e1')).toMatchObject({
+            kind: 'event',
+            label: '',
+            dashed: true,
+            bidir: false,
+        });
+
+        engine.undo();
+
+        expect(engine.edge('e1')?.kind).toBeNull();
+    });
+
+    it('não empilha quando o pedido não muda nada', () => {
+        const engine = typed();
+
+        engine.setEdgeKind('e1', null);
+        engine.setEdgeLabel('e1', '');
+        engine.setEdgeKind('inexistente', 'http');
+        engine.reverseEdge('inexistente');
+
         expect(engine.undoDepth).toBe(0);
     });
 });

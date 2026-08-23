@@ -3,7 +3,8 @@ import { Head } from '@inertiajs/vue3';
 import type { ComponentPublicInstance } from 'vue';
 import { computed, nextTick, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import { CanvasEngine } from '@/canvas/engine';
-import type { SequenceMode } from '@/canvas/types';
+import { ptAt } from '@/canvas/geometry';
+import type { EdgeFlag, RefusalReason, SequenceMode } from '@/canvas/types';
 import { LEGEND_WIDTH } from '@/canvas/view';
 import BoardTopBar from '@/components/prancheta/BoardTopBar.vue';
 import CanvasNode from '@/components/prancheta/CanvasNode.vue';
@@ -12,6 +13,8 @@ import ComponentPalette from '@/components/prancheta/ComponentPalette.vue';
 import ComponentRail from '@/components/prancheta/ComponentRail.vue';
 import DrillClock from '@/components/prancheta/DrillClock.vue';
 import DrillPanel from '@/components/prancheta/DrillPanel.vue';
+import EdgeChip from '@/components/prancheta/EdgeChip.vue';
+import EdgeFloatBar from '@/components/prancheta/EdgeFloatBar.vue';
 import ModalSheet from '@/components/prancheta/ModalSheet.vue';
 import NarrowNotice from '@/components/prancheta/NarrowNotice.vue';
 import PranchetaButton from '@/components/prancheta/PranchetaButton.vue';
@@ -46,7 +49,11 @@ const { warn } = useToast();
 const store = reactive(createSessionStore(props.session)) as SessionStore;
 
 const engine = reactive(
-    new CanvasEngine(store.state, props.catalog.component_categories),
+    new CanvasEngine(
+        store.state,
+        props.catalog.component_categories,
+        props.catalog.link_types,
+    ),
 ) as CanvasEngine;
 
 const { autosave, saveNow } = useAutosave(store);
@@ -62,7 +69,12 @@ const stageElement = computed(() => stage.value?.el ?? null);
 
 const nodeComponents = new Map<string, { beginEdit: () => void }>();
 
-useStageInteraction(engine, stageElement, { onEditRequest: editNode });
+const chipComponents = new Map<string, { beginEdit: () => void }>();
+
+useStageInteraction(engine, stageElement, {
+    onEditRequest: editNode,
+    onRefused: warnAbout,
+});
 
 /** A legenda cobre o canto direito do palco, e enquadrar tudo desconta isso. */
 watch(
@@ -76,25 +88,62 @@ watch(
     (categories) => engine.setCatalog(categories),
 );
 
+watch(
+    () => props.catalog.link_types,
+    (linkTypes) => engine.setLinkTypes(linkTypes),
+);
+
+/**
+ * As setas desenhadas. A aresta órfã que sobrou de um desfazer parcial fica de
+ * fora do desenho sem sair do estado, e a cor vem sempre da categoria do bloco
+ * de origem — nunca do tipo da ligação (US-4.1).
+ */
 const wires = computed(() =>
-    engine.edges.flatMap((edge) => {
+    engine.liveEdges().flatMap((edge) => {
         const geometry = engine.geometry(edge);
 
         if (!geometry) {
             return [];
         }
 
+        const [midX, midY] = ptAt(geometry, 0.5);
+        const chip = engine.edgeChip(edge);
+
         return [
             {
                 id: edge.id,
                 geometry,
                 headPath: engine.arrowHead(geometry).d,
-                color: engine.color(engine.node(edge.from)?.type ?? ''),
+                tailPath: edge.bidir ? engine.arrowTail(geometry).d : null,
+                dash: engine.dashOf(edge),
+                color: engine.edgeColor(edge),
                 selected: engine.isSelected('edge', edge.id),
+                chip,
+                midX,
+                midY,
             },
         ];
     }),
 );
+
+const selectedEdge = computed(() =>
+    engine.selection?.kind === 'edge' ? engine.edge(engine.selection.id) : null,
+);
+
+/**
+ * A barra flutuante da seta selecionada. O apoio dela sai do enquadramento
+ * corrente, então ela acompanha pan e zoom sem guardar posição própria.
+ */
+const edgeBar = computed(() => {
+    const edge = selectedEdge.value;
+    const anchor = edge ? engine.edgeAnchor(edge) : null;
+
+    if (!edge || !anchor) {
+        return null;
+    }
+
+    return { edge, anchor, badge: engine.edgeChip(edge).badge };
+});
 
 const sheetTitle = computed(() =>
     openSheet.value === 'sessions' ? 'Sessões' : 'Escolher um problema',
@@ -159,6 +208,37 @@ function editNode(id: string): void {
     nextTick(() => nodeComponents.get(id)?.beginEdit());
 }
 
+function setChipComponent(
+    id: string,
+    instance: Element | ComponentPublicInstance | null,
+): void {
+    if (instance) {
+        chipComponents.set(
+            id,
+            instance as unknown as { beginEdit: () => void },
+        );
+
+        return;
+    }
+
+    chipComponents.delete(id);
+}
+
+/** Recusa silenciosa não vira aviso; só o limite de 400 tem o que dizer. */
+function warnAbout(reason: RefusalReason): void {
+    if (reason === 'edgeLimitReached' || reason === 'nodeLimitReached') {
+        warn(reason);
+    }
+}
+
+function editEdgeLabel(id: string): void {
+    nextTick(() => chipComponents.get(id)?.beginEdit());
+}
+
+function pickEdgeKind(id: string, kind: string | null): void {
+    engine.setEdgeKind(id, kind);
+}
+
 /**
  * Um clique na paleta coloca o bloco e abre o campo de nome já focado. No
  * limite de 200 o bloco não entra e o usuário fica sabendo pelo toast (US-3.1).
@@ -167,9 +247,7 @@ function placeNode(slug: string): void {
     const result = engine.addNode(slug);
 
     if (!result.ok) {
-        if (result.reason === 'nodeLimitReached') {
-            warn(result.reason);
-        }
+        warnAbout(result.reason);
 
         return;
     }
@@ -235,8 +313,21 @@ function cycleSequenceMode(): void {
                         :edge-id="wire.id"
                         :geometry="wire.geometry"
                         :head-path="wire.headPath"
+                        :tail-path="wire.tailPath"
+                        :dash="wire.dash"
                         :color="wire.color"
                         :selected="wire.selected"
+                    />
+
+                    <path
+                        v-if="engine.ghost"
+                        data-testid="link-ghost"
+                        :d="engine.ghost.d"
+                        fill="none"
+                        stroke="var(--accent)"
+                        stroke-width="1.8"
+                        stroke-linecap="round"
+                        stroke-dasharray="4 4"
                     />
                 </template>
 
@@ -250,8 +341,49 @@ function cycleSequenceMode(): void {
                         :icon-key="engine.component(node.type)?.icon_key ?? ''"
                         :type-name="engine.shortName(node.type)"
                         :selected="engine.isSelected('node', node.id)"
+                        :link-target="engine.isLinkTarget(node.id)"
                         @rename="engine.renameNode(node.id, $event)"
                         @measure="engine.measure(node.id, $event)"
+                    />
+                </template>
+
+                <template #labels>
+                    <EdgeChip
+                        v-for="wire in wires"
+                        :key="wire.id"
+                        :ref="(instance) => setChipComponent(wire.id, instance)"
+                        :edge-id="wire.id"
+                        :badge="wire.chip.badge"
+                        :label="wire.chip.label"
+                        :bare="wire.chip.bare"
+                        :color="wire.color"
+                        :x="wire.midX"
+                        :y="wire.midY"
+                        @rename="engine.setEdgeLabel(wire.id, $event)"
+                    />
+                </template>
+
+                <template #overlay>
+                    <EdgeFloatBar
+                        v-if="edgeBar"
+                        :edge-id="edgeBar.edge.id"
+                        :anchor="edgeBar.anchor"
+                        :stage="engine.size"
+                        :types="engine.linkTypes"
+                        :kind="edgeBar.edge.kind"
+                        :badge="edgeBar.badge"
+                        :dashed="edgeBar.edge.dashed"
+                        :bidir="edgeBar.edge.bidir"
+                        @pick-kind="pickEdgeKind(edgeBar.edge.id, $event)"
+                        @edit-label="editEdgeLabel(edgeBar.edge.id)"
+                        @toggle="
+                            engine.toggleEdgeFlag(
+                                edgeBar.edge.id,
+                                $event as EdgeFlag,
+                            )
+                        "
+                        @reverse="engine.reverseEdge(edgeBar.edge.id)"
+                        @remove="engine.deleteSelection()"
                     />
                 </template>
             </StageCanvas>

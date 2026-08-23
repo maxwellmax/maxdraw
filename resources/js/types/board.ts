@@ -1,4 +1,5 @@
 import type { CatalogCategory } from '@/canvas/catalog';
+import type { LinkType } from '@/canvas/links';
 import type { Edge, Node } from '@/canvas/types';
 
 /**
@@ -28,7 +29,7 @@ export type SessionPayload = {
 export type BoardCatalog = {
     problems: unknown[];
     component_categories: CatalogCategory[];
-    link_types: unknown[];
+    link_types: LinkType[];
     phases: unknown[];
     sequence_modes: unknown[];
     session_durations: unknown[];

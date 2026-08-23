@@ -1,14 +1,18 @@
 import { useEventListener, useResizeObserver } from '@vueuse/core';
 import type { Ref } from 'vue';
 import type { CanvasEngine } from '@/canvas/engine';
+import type { RefusalReason } from '@/canvas/types';
 
 type Options = {
     /** Chamado quando o usuário pede para renomear pelo teclado (Enter ou F2). */
     onEditRequest: (nodeId: string) => void;
+    /** Chamado quando o motor recusa a ligação — o limite de 400 vira toast. */
+    onRefused: (reason: RefusalReason) => void;
 };
 
 type Gesture =
     | { kind: 'drag' }
+    | { kind: 'link' }
     | { kind: 'pan'; x: number; y: number; viewX: number; viewY: number }
     | null;
 
@@ -49,6 +53,20 @@ export function useStageInteraction(
         return [clientX - (rect?.left ?? 0), clientY - (rect?.top ?? 0)];
     }
 
+    /** Qual bloco está sob o ponteiro agora, para o arrasto de ligação. */
+    function nodeUnder(clientX: number, clientY: number): string | null {
+        const element = document.elementFromPoint(clientX, clientY);
+
+        if (!(element instanceof HTMLElement)) {
+            return null;
+        }
+
+        return (
+            element.closest<HTMLElement>('[data-node-id]')?.dataset.nodeId ??
+            null
+        );
+    }
+
     useEventListener(stage, 'pointerdown', (event: PointerEvent) => {
         const target = event.target as HTMLElement | null;
 
@@ -62,12 +80,19 @@ export function useStageInteraction(
             editing.blur();
         }
 
-        // As bolinhas de conexão são o gesto de ligar, que a Phase 11 implementa.
-        if (target.closest('[data-handle]')) {
+        const nodeElement = target.closest<HTMLElement>('[data-node-id]');
+
+        if (target.closest('[data-handle]') && nodeElement?.dataset.nodeId) {
+            event.preventDefault();
+
+            const [worldX, worldY] = toWorld(event.clientX, event.clientY);
+
+            engine.beginLink(nodeElement.dataset.nodeId, worldX, worldY);
+            gesture = { kind: 'link' };
+            stage.value?.setPointerCapture(event.pointerId);
+
             return;
         }
-
-        const nodeElement = target.closest<HTMLElement>('[data-node-id]');
 
         if (nodeElement?.dataset.nodeId) {
             const id = nodeElement.dataset.nodeId;
@@ -96,6 +121,14 @@ export function useStageInteraction(
 
         if (edgeElement?.dataset.edgeId) {
             engine.select({ kind: 'edge', id: edgeElement.dataset.edgeId });
+
+            if (
+                target.closest('[data-testid="edge-chip-label"]') &&
+                event.detail >= 2
+            ) {
+                return;
+            }
+
             event.preventDefault();
 
             return;
@@ -127,6 +160,18 @@ export function useStageInteraction(
             return;
         }
 
+        if (gesture.kind === 'link') {
+            const [worldX, worldY] = toWorld(event.clientX, event.clientY);
+
+            engine.linkTo(
+                worldX,
+                worldY,
+                nodeUnder(event.clientX, event.clientY),
+            );
+
+            return;
+        }
+
         engine.setView({
             k: engine.view.k,
             x: gesture.viewX + (event.clientX - gesture.x),
@@ -139,11 +184,30 @@ export function useStageInteraction(
             engine.endDrag();
         }
 
+        if (gesture?.kind === 'link') {
+            const result = engine.endLink();
+
+            if (result && !result.ok) {
+                options.onRefused(result.reason);
+            }
+        }
+
+        gesture = null;
+    }
+
+    /** Um gesto cancelado nunca cria a ligação: o fantasma some e pronto. */
+    function cancelGesture(): void {
+        if (gesture?.kind === 'drag') {
+            engine.endDrag();
+        }
+
+        engine.cancelLink();
+
         gesture = null;
     }
 
     useEventListener(stage, 'pointerup', endGesture);
-    useEventListener(stage, 'pointercancel', endGesture);
+    useEventListener(stage, 'pointercancel', cancelGesture);
 
     useEventListener(
         stage,
@@ -204,6 +268,7 @@ export function useStageInteraction(
         }
 
         if (event.key === 'Escape') {
+            engine.cancelLink();
             engine.select(null);
 
             return;

@@ -5,13 +5,17 @@ import { labelRoomLeft } from '@/canvas/labels';
 import type { Node } from '@/canvas/types';
 import CanvasIcon from '@/components/prancheta/CanvasIcon.vue';
 
-const props = defineProps<{
-    node: Node;
-    color: string;
-    iconKey: string;
-    typeName: string;
-    selected: boolean;
-}>();
+const props = withDefaults(
+    defineProps<{
+        node: Node;
+        color: string;
+        iconKey: string;
+        typeName: string;
+        selected: boolean;
+        linkTarget?: boolean;
+    }>(),
+    { linkTarget: false },
+);
 
 const emit = defineEmits<{
     rename: [label: string];
@@ -26,14 +30,25 @@ useResizeObserver(root, ([entry]) =>
     emit('measure', (entry.target as HTMLElement).offsetHeight),
 );
 
+/**
+ * O bloco sob o cursor durante um arrasto de ligação veste o destaque de alvo,
+ * que é do acento — e não da cor da categoria — para não se confundir com a
+ * borda de bloco selecionado (US-3.3).
+ */
 const style = computed(() => ({
     '--nc': props.color,
     left: `${props.node.x}px`,
     top: `${props.node.y}px`,
-    boxShadow: props.selected
-        ? '0 0 0 2px color-mix(in srgb, var(--nc) 34%, transparent), var(--shadow-2)'
-        : undefined,
-    borderColor: props.selected ? 'var(--nc)' : undefined,
+    boxShadow: props.linkTarget
+        ? '0 0 0 3px var(--accent-soft)'
+        : props.selected
+          ? '0 0 0 2px color-mix(in srgb, var(--nc) 34%, transparent), var(--shadow-2)'
+          : undefined,
+    borderColor: props.linkTarget
+        ? 'var(--accent)'
+        : props.selected
+          ? 'var(--nc)'
+          : undefined,
 }));
 
 /**
@@ -127,6 +142,7 @@ defineExpose({ beginEdit });
         data-testid="node"
         :data-node-id="node.id"
         :data-selected="selected"
+        :data-link-target="linkTarget"
         :class="[
             'group absolute flex min-h-[86px] w-[132px] cursor-grab flex-col items-center gap-0.5 rounded-[10px] border border-sd-line-2 bg-sd-panel px-2 pt-[11px] pb-[9px] shadow-sd-1 select-none hover:shadow-sd-2',
             { 'shadow-sd-2': selected },

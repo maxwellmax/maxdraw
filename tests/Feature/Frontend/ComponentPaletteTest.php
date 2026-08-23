@@ -91,7 +91,8 @@ it('coloca o bloco na área visível, sem sobrepor, e abre o nome focado', funct
 
 it('avisa por toast e não adiciona o bloco no limite de 200', function () {
     expect(frontendSource('pages/Board.vue'))
-        ->toMatch("/if \(result\.reason === 'nodeLimitReached'\) \{\s*warn\(result\.reason\);/");
+        ->toMatch("/if \(!result\.ok\) \{\s*warnAbout\(result\.reason\);/")
+        ->toMatch("/reason === 'nodeLimitReached'\) \{\s*warn\(reason\);/");
 
     expect(frontendSource('prancheta/warnings.ts'))->toContain('nodeLimitReached:');
 

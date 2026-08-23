@@ -66,6 +66,8 @@ defineExpose({ el: root });
             <div data-testid="labels-layer"><slot name="labels" /></div>
         </div>
 
+        <div data-testid="stage-overlay"><slot name="overlay" /></div>
+
         <div
             v-if="empty"
             data-testid="empty-state"

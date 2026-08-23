@@ -13,17 +13,28 @@ import {
     removeNode,
     renameNode,
     restore,
+    reverseEdge,
+    setEdgeKind,
+    setEdgeLabel,
     snapshot,
+    toggleEdgeFlag,
 } from './diagram';
-import { bez, head, NODE_HEIGHT } from './geometry';
+import type { EdgeChip } from './edges';
+import { dashOf, edgeChip, edgeColor, edgeOk, liveEdges } from './edges';
+import { bez, ghostCurve, head, NODE_HEIGHT, ptAt } from './geometry';
+import type { LinkType, LinkTypeIndex } from './links';
+import { indexLinkTypes, linkTypeOf } from './links';
 import { edgeById, nodeById, nodeHeight } from './nodes';
 import type {
     ArrowHead,
     Edge,
+    EdgeFlag,
     EdgeGeometry,
+    LinkDrag,
     MutationResult,
     Node,
     NodeHeights,
+    Point,
     Selection,
     SelectionKind,
     SequenceMode,
@@ -36,7 +47,9 @@ import {
     centerSpot,
     DEFAULT_VIEW,
     fitView,
+    FLOATBAR_LIFT,
     panBy,
+    toScreen,
     toWorld,
     wheelZoom,
     zoomAt,
@@ -78,12 +91,18 @@ export class CanvasEngine {
 
     private drag: Drag | null = null;
 
+    private linkIndex: LinkTypeIndex;
+
+    private linkDrag: LinkDrag | null = null;
+
     constructor(
         state: SessionState,
         categories: readonly CatalogCategory[] = [],
+        linkTypes: readonly LinkType[] = [],
     ) {
         this.state = state;
         this.index = indexComponents(categories);
+        this.linkIndex = indexLinkTypes(linkTypes);
     }
 
     get nodes(): Node[] {
@@ -122,8 +141,21 @@ export class CanvasEngine {
         return this.drag !== null;
     }
 
+    /** Os nove tipos na ordem do catálogo, que é a ordem do menu (US-4.1). */
+    get linkTypes(): LinkType[] {
+        return [...this.linkIndex.values()];
+    }
+
+    get isLinking(): boolean {
+        return this.linkDrag !== null;
+    }
+
     setCatalog(categories: readonly CatalogCategory[]): void {
         this.index = indexComponents(categories);
+    }
+
+    setLinkTypes(linkTypes: readonly LinkType[]): void {
+        this.linkIndex = indexLinkTypes(linkTypes);
     }
 
     setSize(size: Size): void {
@@ -170,9 +202,55 @@ export class CanvasEngine {
         return bez(edge, this.state.nodes, this.heights);
     }
 
+    edgeOk(edge: Edge): boolean {
+        return edgeOk(edge, this.state.nodes);
+    }
+
+    liveEdges(): Edge[] {
+        return liveEdges(this.state.edges, this.state.nodes);
+    }
+
+    linkType(edge: Edge): LinkType | null {
+        return linkTypeOf(this.linkIndex, edge.kind);
+    }
+
+    dashOf(edge: Edge): string | null {
+        return dashOf(this.linkIndex, edge);
+    }
+
+    edgeColor(edge: Edge): string {
+        return edgeColor(this.index, edge, this.state.nodes);
+    }
+
+    edgeChip(edge: Edge): EdgeChip {
+        return edgeChip(this.linkIndex, edge);
+    }
+
+    /**
+     * O ponto de apoio da barra flutuante, já em coordenadas de tela: o meio da
+     * curva, um pouco acima dela. Como sai do enquadramento corrente, a barra
+     * acompanha pan e zoom sem guardar posição própria (US-4.1).
+     */
+    edgeAnchor(edge: Edge): Point | null {
+        const geometry = this.geometry(edge);
+
+        if (!geometry) {
+            return null;
+        }
+
+        const [x, y] = ptAt(geometry, 0.5);
+
+        return toScreen(this.view, x, y - FLOATBAR_LIFT);
+    }
+
     /** A ponta da seta encosta no destino, deitada sobre a tangente que chega lá. */
     arrowHead(geometry: EdgeGeometry): ArrowHead {
         return head(geometry.x2, geometry.y2, geometry.c2[0], geometry.c2[1]);
+    }
+
+    /** A segunda ponta, na origem, é o que desenha a mão dupla. */
+    arrowTail(geometry: EdgeGeometry): ArrowHead {
+        return head(geometry.x1, geometry.y1, geometry.c1[0], geometry.c1[1]);
     }
 
     select(selection: Selection | null): void {
@@ -272,6 +350,107 @@ export class CanvasEngine {
         this.selection = null;
 
         return true;
+    }
+
+    /**
+     * Começa a ligação a partir de uma das bolinhas do bloco. Enquanto o arrasto
+     * dura, `ghost` desenha a curva que segue o cursor e `linkTarget` diz qual
+     * bloco está destacado como alvo.
+     */
+    beginLink(from: string, worldX: number, worldY: number): void {
+        if (!this.node(from)) {
+            return;
+        }
+
+        this.linkDrag = { from, x: worldX, y: worldY, target: null };
+    }
+
+    /** O bloco sob o cursor vira alvo — menos o próprio bloco de origem. */
+    linkTo(worldX: number, worldY: number, over: string | null = null): void {
+        const link = this.linkDrag;
+
+        if (!link) {
+            return;
+        }
+
+        link.x = worldX;
+        link.y = worldY;
+        link.target =
+            over && over !== link.from && this.node(over) ? over : null;
+    }
+
+    get ghost(): EdgeGeometry | null {
+        const link = this.linkDrag;
+        const from = link ? this.node(link.from) : null;
+
+        if (!link || !from) {
+            return null;
+        }
+
+        return ghostCurve(from, this.heightOf(from), link.x, link.y);
+    }
+
+    get linkSource(): string | null {
+        return this.linkDrag?.from ?? null;
+    }
+
+    get linkTarget(): string | null {
+        return this.linkDrag?.target ?? null;
+    }
+
+    isLinkTarget(id: string): boolean {
+        return this.linkDrag?.target === id;
+    }
+
+    /**
+     * Solta a ligação. Fora de qualquer bloco — ou em cima do próprio bloco de
+     * origem — não cria nada, e o `null` é justamente esse silêncio: não houve
+     * recusa a avisar, houve desistência (US-3.3).
+     */
+    endLink(): MutationResult<Edge> | null {
+        const link = this.linkDrag;
+
+        this.linkDrag = null;
+
+        if (!link || !link.target) {
+            return null;
+        }
+
+        return this.addEdge(link.from, link.target);
+    }
+
+    cancelLink(): void {
+        this.linkDrag = null;
+    }
+
+    setEdgeKind(id: string, kind: string | null): boolean {
+        return this.mutateEdge(() =>
+            setEdgeKind(this.state, id, kind, this.linkIndex),
+        );
+    }
+
+    setEdgeLabel(id: string, label: string): boolean {
+        return this.mutateEdge(() => setEdgeLabel(this.state, id, label));
+    }
+
+    toggleEdgeFlag(id: string, flag: EdgeFlag): boolean {
+        return this.mutateEdge(() => toggleEdgeFlag(this.state, id, flag));
+    }
+
+    reverseEdge(id: string): boolean {
+        return this.mutateEdge(() => reverseEdge(this.state, id));
+    }
+
+    /** Tipo, rótulo e bandeiras mudam o desenho, então todas empilham desfazer. */
+    private mutateEdge(change: () => boolean): boolean {
+        const previous = snapshot(this.state);
+        const changed = change();
+
+        if (changed) {
+            this.history.push(previous);
+        }
+
+        return changed;
     }
 
     beginDrag(id: string, worldX: number, worldY: number): void {

@@ -1,4 +1,5 @@
 import type { CatalogCategory } from './catalog';
+import type { LinkType } from './links';
 import type { Edge, Node, SessionState } from './types';
 
 /**
@@ -23,6 +24,32 @@ export function catalogFixture(): CatalogCategory[] {
                     name: 'Worker',
                     short_name: 'Worker',
                     icon_key: 'worker',
+                },
+            ],
+        },
+        {
+            slug: 'client',
+            name: 'Cliente',
+            color_token: '--c-client',
+            components: [
+                {
+                    slug: 'browser',
+                    name: 'Navegador',
+                    short_name: 'Navegador',
+                    icon_key: 'browser',
+                },
+            ],
+        },
+        {
+            slug: 'edge',
+            name: 'Rede & Borda',
+            color_token: '--c-edge',
+            components: [
+                {
+                    slug: 'cdn',
+                    name: 'CDN',
+                    short_name: 'CDN',
+                    icon_key: 'cdn',
                 },
             ],
         },
@@ -52,7 +79,46 @@ export function catalogFixture(): CatalogCategory[] {
                 },
             ],
         },
+        {
+            slug: 'ops',
+            name: 'Operação',
+            color_token: '--c-ops',
+            components: [
+                {
+                    slug: 'monitor',
+                    name: 'Monitoramento',
+                    short_name: 'Monitoramento',
+                    icon_key: 'monitor',
+                },
+            ],
+        },
     ];
+}
+
+/**
+ * Os nove tipos de ligação como o `LinkTypeSeeder` os grava. O selo e o
+ * `dash_array` são os do catálogo real — mudá-los aqui é mudar o contrato.
+ */
+export function linkTypesFixture(): LinkType[] {
+    return [
+        ['http', 'HTTP / REST', 'HTTP', null, false],
+        ['grpc', 'gRPC', 'gRPC', null, false],
+        ['ws', 'WebSocket', 'WS', null, true],
+        ['event', 'Evento — assíncrono', 'async', '5 4.5', false],
+        ['query', 'Consulta ao banco', 'query', null, false],
+        ['cache', 'Cache lookup', 'cache', null, false],
+        ['repl', 'Replicação', 'replica', '5 4.5', false],
+        ['batch', 'Lote / ETL', 'batch', '5 4.5', false],
+        ['retry', 'Falha / Retry — DLQ', 'retry', '2 4.5', false],
+    ].map(([slug, name, badge, dash, bidir], position) => ({
+        id: position + 1,
+        slug: slug as string,
+        name: name as string,
+        badge_label: badge as string,
+        dash_array: dash as string | null,
+        is_bidirectional_default: bidir as boolean,
+        gloss: '',
+    }));
 }
 
 export function nodeFixture(id: string, x = 0, y = 0, type = 'api'): Node {

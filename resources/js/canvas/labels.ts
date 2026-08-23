@@ -1,13 +1,22 @@
 import { MAX_LABEL_LENGTH } from './limits';
 
 /**
- * O rótulo como ele entra no diagrama: aparado, cortado no limite e, quando o
- * usuário apaga tudo, de volta ao nome curto do componente.
+ * O rótulo como ele entra no diagrama: aparado e cortado no limite. É o que a
+ * seta grava — vazio ali é um estado legítimo, a seta simplesmente fica sem
+ * rótulo (US-4.2).
+ */
+export function clampLabel(raw: string): string {
+    return raw.trim().slice(0, MAX_LABEL_LENGTH);
+}
+
+/**
+ * O rótulo do bloco: o mesmo aparo, mais o nome curto do componente de volta
+ * quando o usuário apaga tudo.
  */
 export function normalizeLabel(raw: string, fallback: string): string {
-    const label = raw.trim().slice(0, MAX_LABEL_LENGTH);
+    const label = clampLabel(raw);
 
-    return label === '' ? fallback.slice(0, MAX_LABEL_LENGTH) : label;
+    return label === '' ? clampLabel(fallback) : label;
 }
 
 /**

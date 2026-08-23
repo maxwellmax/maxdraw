@@ -60,32 +60,16 @@ export function clipPt(
 }
 
 /**
- * A curva da aresta: centro a centro, recortada na borda dos dois blocos, com
- * os controles do bezier no eixo dominante. Devolve `null` quando a aresta é um
- * laço ou aponta para um bloco que não existe mais.
+ * A curva entre dois pontos, com os controles do bezier no eixo dominante: o
+ * traçado sai horizontal quando o vão horizontal manda, e vertical quando é o
+ * vertical que manda.
  */
-export function bez(
-    edge: Edge,
-    nodes: readonly Node[],
-    heights: NodeHeights = {},
-): EdgeGeometry | null {
-    const from = nodeById(nodes, edge.from);
-    const to = nodeById(nodes, edge.to);
-
-    if (!from || !to || from === to) {
-        return null;
-    }
-
-    const fromHeight = nodeHeight(from, heights);
-    const toHeight = nodeHeight(to, heights);
-    const ax = from.x + NODE_WIDTH / 2;
-    const ay = from.y + fromHeight / 2;
-    const bx = to.x + NODE_WIDTH / 2;
-    const by = to.y + toHeight / 2;
-
-    const [x1, y1] = clipPt(ax, ay, NODE_WIDTH, fromHeight, bx, by, SOURCE_PAD);
-    const [x2, y2] = clipPt(bx, by, NODE_WIDTH, toHeight, ax, ay, TARGET_PAD);
-
+export function curve(
+    x1: number,
+    y1: number,
+    x2: number,
+    y2: number,
+): EdgeGeometry {
     const dx = x2 - x1;
     const dy = y2 - y1;
     const horizontal = Math.abs(dx) >= Math.abs(dy);
@@ -111,6 +95,54 @@ export function bez(
         c2,
         d: `M${x1} ${y1}C${c1[0]} ${c1[1]} ${c2[0]} ${c2[1]} ${x2} ${y2}`,
     };
+}
+
+/**
+ * A curva da aresta: centro a centro, recortada na borda dos dois blocos.
+ * Devolve `null` quando a aresta é um laço ou aponta para um bloco que não
+ * existe mais — a órfã fica no estado, mas não é desenhada.
+ */
+export function bez(
+    edge: Edge,
+    nodes: readonly Node[],
+    heights: NodeHeights = {},
+): EdgeGeometry | null {
+    const from = nodeById(nodes, edge.from);
+    const to = nodeById(nodes, edge.to);
+
+    if (!from || !to || from === to) {
+        return null;
+    }
+
+    const fromHeight = nodeHeight(from, heights);
+    const toHeight = nodeHeight(to, heights);
+    const ax = from.x + NODE_WIDTH / 2;
+    const ay = from.y + fromHeight / 2;
+    const bx = to.x + NODE_WIDTH / 2;
+    const by = to.y + toHeight / 2;
+
+    const [x1, y1] = clipPt(ax, ay, NODE_WIDTH, fromHeight, bx, by, SOURCE_PAD);
+    const [x2, y2] = clipPt(bx, by, NODE_WIDTH, toHeight, ax, ay, TARGET_PAD);
+
+    return curve(x1, y1, x2, y2);
+}
+
+/**
+ * A curva fantasma do arrasto de ligação: sai da borda do bloco de origem, na
+ * direção do ponteiro, e termina no próprio ponteiro — que ainda não é bloco
+ * nenhum e por isso não tem borda para recortar (US-3.3).
+ */
+export function ghostCurve(
+    from: Node,
+    height: number,
+    x: number,
+    y: number,
+): EdgeGeometry {
+    const ax = from.x + NODE_WIDTH / 2;
+    const ay = from.y + height / 2;
+    const [x1, y1] = clipPt(ax, ay, NODE_WIDTH, height, x, y, SOURCE_PAD);
+
+    return curve(x1, y1, x, y);
 }
 
 /**

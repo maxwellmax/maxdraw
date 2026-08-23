@@ -1,13 +1,18 @@
 <script setup lang="ts">
 import type { EdgeGeometry } from '@/canvas/types';
 
-defineProps<{
-    edgeId: string;
-    geometry: EdgeGeometry;
-    headPath: string;
-    color: string;
-    selected: boolean;
-}>();
+withDefaults(
+    defineProps<{
+        edgeId: string;
+        geometry: EdgeGeometry;
+        headPath: string;
+        color: string;
+        selected: boolean;
+        dash?: string | null;
+        tailPath?: string | null;
+    }>(),
+    { dash: null, tailPath: null },
+);
 </script>
 
 <template>
@@ -28,11 +33,19 @@ defineProps<{
             :stroke-width="selected ? 2.6 : 1.8"
             stroke-linecap="round"
             :stroke="color"
+            :stroke-dasharray="dash ?? undefined"
             class="pointer-events-none"
         />
         <path
             data-testid="wire-head"
             :d="headPath"
+            :fill="color"
+            stroke="none"
+        />
+        <path
+            v-if="tailPath"
+            data-testid="wire-tail"
+            :d="tailPath"
             :fill="color"
             stroke="none"
         />
