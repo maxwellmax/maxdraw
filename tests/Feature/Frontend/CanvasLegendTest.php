@@ -175,7 +175,7 @@ it('tira a glosa do catálogo do servidor, sem tabela paralela no cliente', func
             ->component('Board')
             ->count('catalog.link_types', 9)
             ->where('catalog.link_types.0.gloss', 'requisição e resposta; o chamador fica esperando')
-            ->missing('catalog.sequence_modes')
+            ->has('catalog', 6)
             ->etc());
 });
 
