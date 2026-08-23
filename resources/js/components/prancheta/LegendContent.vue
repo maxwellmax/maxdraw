@@ -1,13 +1,9 @@
 <script setup lang="ts">
 import type { LegendData } from '@/canvas/legend';
+import { UNTYPED_GLOSS, UNTYPED_NAME } from '@/canvas/legend';
 import LegendLine from '@/components/prancheta/LegendLine.vue';
 
 defineProps<{ data: LegendData }>();
-
-/** A linha que a legenda dá à seta que ainda não tem protocolo escolhido. */
-const UNTYPED_NAME = 'sem tipo';
-
-const UNTYPED_GLOSS = 'clique na seta e escolha o protocolo';
 </script>
 
 <template>

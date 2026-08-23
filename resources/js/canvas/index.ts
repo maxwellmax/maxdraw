@@ -11,6 +11,7 @@ export * from './links';
 export * from './limits';
 export * from './nodes';
 export * from './sequence';
+export * from './svg';
 export * from './types';
 export * from './undo';
 export * from './view';

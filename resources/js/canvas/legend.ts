@@ -42,6 +42,15 @@ export type LegendSequence = {
     text: string;
 };
 
+/**
+ * A linha que a legenda dá à seta que ainda não tem protocolo escolhido. Mora
+ * aqui porque a tela e o arquivo exportado mostram a mesma legenda — não há uma
+ * segunda (US-5.1, US-9.1).
+ */
+export const UNTYPED_NAME = 'sem tipo';
+
+export const UNTYPED_GLOSS = 'clique na seta e escolha o protocolo';
+
 export type LegendData = {
     categories: LegendCategory[];
     links: LegendLink[];

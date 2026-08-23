@@ -1,6 +1,7 @@
 import type { CatalogCategory } from './catalog';
 import type { LinkType } from './links';
 import type { SequenceModeOption } from './sequence';
+import type { SvgPalette } from './svg';
 import type { Edge, Node, SessionState } from './types';
 
 /**
@@ -225,4 +226,28 @@ export function stateFixture(
     edges: Edge[] = [],
 ): SessionState {
     return { nodes, edges, seqMode: 'out' };
+}
+
+/**
+ * As cores do tema já resolvidas, como o `useTheme` as entrega ao exportador.
+ * Os valores são distintos de propósito: é o que deixa um teste dizer de qual
+ * token uma cor do arquivo veio.
+ */
+export function paletteFixture(): SvgPalette {
+    return {
+        '--c-client': '#0f766e',
+        '--c-edge': '#1d4ed8',
+        '--c-compute': '#7c3aed',
+        '--c-data': '#b45309',
+        '--c-async': '#be123c',
+        '--c-ops': '#0891b2',
+        '--ink': '#111827',
+        '--ink-2': '#374151',
+        '--ink-3': '#6b7280',
+        '--paper': '#fdfdfc',
+        '--panel': '#ffffff',
+        '--line': '#e7e5e4',
+        '--line-2': '#d6d3d1',
+        '--accent': '#2563eb',
+    };
 }

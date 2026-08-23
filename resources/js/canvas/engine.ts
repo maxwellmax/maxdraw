@@ -34,6 +34,8 @@ import type {
     SequenceModeOption,
 } from './sequence';
 import { outSeq, seqMap, sequenceMenu, sequenceModeOf } from './sequence';
+import type { SvgPalette } from './svg';
+import { buildSVG } from './svg';
 import type {
     ArrowHead,
     Edge,
@@ -550,6 +552,22 @@ export class CanvasEngine {
             this.linkIndex,
             this.sequenceModeOptions,
         );
+    }
+
+    /**
+     * O diagrama inteiro em SVG, montado a partir do mesmo estado que a tela
+     * desenha. As cores chegam resolvidas do tema ativo porque o arquivo não
+     * tem as variáveis CSS do documento para consultar (US-9.1).
+     */
+    toSVG(palette: SvgPalette): string {
+        return buildSVG({
+            state: this.state,
+            index: this.index,
+            linkIndex: this.linkIndex,
+            palette,
+            modes: this.sequenceModeOptions,
+            heights: this.heights,
+        });
     }
 
     /**

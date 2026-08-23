@@ -76,6 +76,6 @@ it('não manda a preferência de tema para o servidor', function () {
 
 it('liga o botão de tema da barra superior ao alternador', function () {
     expect(frontendSource('pages/Board.vue'))
-        ->toContain('const { toggle: toggleTheme } = useTheme();')
+        ->toContain('toggle: toggleTheme')
         ->toContain('@toggle-theme="toggleTheme"');
 });

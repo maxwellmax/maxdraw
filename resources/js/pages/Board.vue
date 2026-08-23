@@ -40,6 +40,7 @@ import { useLegend } from '@/composables/useLegend';
 import { useStageInteraction } from '@/composables/useStageInteraction';
 import { useTheme } from '@/composables/useTheme';
 import { useToast } from '@/composables/useToast';
+import { downloadFile } from '@/lib/downloadFile';
 import {
     bounds,
     curPhase,
@@ -47,6 +48,7 @@ import {
     phaseSegments,
 } from '@/prancheta/clock';
 import type { EstimateFieldKey } from '@/prancheta/estimate';
+import { exportFileName, SVG_MIME_TYPE } from '@/prancheta/export';
 import {
     opensPickerOnLoad,
     PICKER_DELAY_MS,
@@ -64,7 +66,7 @@ const props = defineProps<{
     catalog: BoardCatalog;
 }>();
 
-const { toggle: toggleTheme } = useTheme();
+const { toggle: toggleTheme, vars: themeVars } = useTheme();
 const { open: legendOpen } = useLegend();
 const { warn } = useToast();
 
@@ -324,10 +326,23 @@ function toggleCheck(itemId: number): void {
     store.setCheck(itemId, !store.checks[String(itemId)]);
 }
 
+/**
+ * O arquivo nasce no navegador, a partir do estado corrente e das cores do tema
+ * aceso — nada trafega pelo servidor. Prancheta vazia não gera arquivo: o
+ * usuário fica sabendo pelo toast (US-9.1).
+ */
 function exportSvg(): void {
     if (engine.isEmpty) {
         warn('exportEmptyCanvas');
+
+        return;
     }
+
+    downloadFile(
+        exportFileName(problem.value),
+        engine.toSVG(themeVars.value),
+        SVG_MIME_TYPE,
+    );
 }
 
 function setNodeComponent(

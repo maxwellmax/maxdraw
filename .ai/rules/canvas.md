@@ -38,3 +38,14 @@ Reordenar é mutação de aresta: passa por `CanvasEngine.mutateEdge` e empilha 
 Glosa e texto do modo vêm do catálogo do servidor (`gloss` do LinkType, `legend_text` do SequenceMode); não crie tabela paralela no cliente. `legendData` devolve `color` só nas categorias — a amostra de traço é neutra por contrato (US-5.1).
 
 O recolhimento é preferência do navegador e mora fora do motor: `prancheta/legend.ts` (chave `sd-legend`, `'0'`/`'1'`) + `composables/useLegend.ts`, com o `ref` no módulo porque o Board precisa dele para zerar `setLegendWidth` — legenda recolhida ou vazia não reserva largura no "enquadrar tudo".
+
+## Exportar SVG: o arquivo é o mesmo desenho, com as cores já resolvidas
+`canvas/svg.ts` (`buildSVG`/`svgLegend`) não tem régua própria: bounds, curva, ponta, chip, numeração e legenda saem de `diagram.ts`, `geometry.ts`, `edges.ts`, `sequence.ts` e `legendData()`. Mudar o desenho da tela muda o arquivo de graça — não monte um segundo motor.
+
+A ordem de emissão é arestas → blocos → chips → legenda. Os chips vêm depois dos blocos de propósito: no arquivo não há z-index, e bloco vizinho cobriria o rótulo.
+
+O SVG recebe uma `SvgPalette` (token CSS → cor) porque o arquivo baixado não tem as variáveis do documento para consultar; quem a entrega é `useTheme().vars`. Token ausente cai em `currentColor`, nunca em atributo vazio. Nada de `var(--x)` na saída.
+
+`UNTYPED_NAME`/`UNTYPED_GLOSS` moram em `canvas/legend.ts` e são importados tanto pelo `LegendContent.vue` quanto pelo `svg.ts` — a legenda da tela e a do arquivo são a mesma.
+
+O download mora fora do motor (`lib/downloadFile.ts`, com DOM) e o nome do arquivo em `prancheta/export.ts`: `canvas/**` e `prancheta/**` são varridos por testes que proíbem `document.`/`window.`.

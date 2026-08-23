@@ -88,9 +88,12 @@ it('monta a seção Ligações com amostra, selo, nome e glosa', function () {
 });
 
 it('dá à seta sem tipo a linha que ensina a escolher o protocolo', function () {
+    expect(frontendSource('canvas/legend.ts'))
+        ->toContain("export const UNTYPED_NAME = 'sem tipo';")
+        ->toContain("export const UNTYPED_GLOSS = 'clique na seta e escolha o protocolo';");
+
     expect(frontendSource('components/prancheta/LegendContent.vue'))
-        ->toContain("const UNTYPED_NAME = 'sem tipo';")
-        ->toContain("const UNTYPED_GLOSS = 'clique na seta e escolha o protocolo';")
+        ->toContain("import { UNTYPED_GLOSS, UNTYPED_NAME } from '@/canvas/legend';")
         ->toContain('v-if="data.untyped"');
 });
 
