@@ -15,12 +15,14 @@ import DrillClock from '@/components/prancheta/DrillClock.vue';
 import DrillPanel from '@/components/prancheta/DrillPanel.vue';
 import EdgeChip from '@/components/prancheta/EdgeChip.vue';
 import EdgeFloatBar from '@/components/prancheta/EdgeFloatBar.vue';
+import LegendContent from '@/components/prancheta/LegendContent.vue';
 import ModalSheet from '@/components/prancheta/ModalSheet.vue';
 import NarrowNotice from '@/components/prancheta/NarrowNotice.vue';
 import PranchetaButton from '@/components/prancheta/PranchetaButton.vue';
 import StageCanvas from '@/components/prancheta/StageCanvas.vue';
 import ToastHost from '@/components/prancheta/ToastHost.vue';
 import { createSessionStore, useAutosave } from '@/composables/useAutosave';
+import { useLegend } from '@/composables/useLegend';
 import { useStageInteraction } from '@/composables/useStageInteraction';
 import { useTheme } from '@/composables/useTheme';
 import { useToast } from '@/composables/useToast';
@@ -35,6 +37,7 @@ const props = defineProps<{
 }>();
 
 const { toggle: toggleTheme } = useTheme();
+const { open: legendOpen } = useLegend();
 const { warn } = useToast();
 
 /**
@@ -77,10 +80,19 @@ useStageInteraction(engine, stageElement, {
     onRefused: warnAbout,
 });
 
-/** A legenda cobre o canto direito do palco, e enquadrar tudo desconta isso. */
+/**
+ * A legenda inteira sai do desenho: nada aqui a configura, e ela some por
+ * completo quando não há o que explicar (US-5.1).
+ */
+const legend = computed(() => engine.legendData());
+
+/**
+ * A legenda cobre o canto direito do palco, e enquadrar tudo desconta isso —
+ * mas só enquanto ela estiver aberta e com conteúdo (US-5.2).
+ */
 watch(
-    () => engine.isEmpty,
-    (isEmpty) => engine.setLegendWidth(isEmpty ? 0 : LEGEND_WIDTH),
+    [() => legend.value.empty, legendOpen],
+    ([empty, open]) => engine.setLegendWidth(empty || !open ? 0 : LEGEND_WIDTH),
     { immediate: true },
 );
 
@@ -303,7 +315,7 @@ function placeNode(slug: string): void {
                 :scale="engine.view.k"
                 :offset-x="engine.view.x"
                 :offset-y="engine.view.y"
-                :legend-visible="!engine.isEmpty"
+                :legend-visible="!legend.empty"
                 :sequence-mode="engine.seqMode"
                 :sequence-modes="engine.sequenceModes"
                 @zoom-in="engine.zoomBy(1.2)"
@@ -367,6 +379,10 @@ function placeNode(slug: string): void {
                         :y="wire.midY"
                         @rename="engine.setEdgeLabel(wire.id, $event)"
                     />
+                </template>
+
+                <template #legend>
+                    <LegendContent :data="legend" />
                 </template>
 
                 <template #overlay>

@@ -23,6 +23,8 @@ import {
 import type { EdgeChip } from './edges';
 import { dashOf, edgeChip, edgeColor, edgeOk, liveEdges } from './edges';
 import { bez, ghostCurve, head, NODE_HEIGHT, ptAt } from './geometry';
+import type { LegendData } from './legend';
+import { legendData } from './legend';
 import type { LinkType, LinkTypeIndex } from './links';
 import { indexLinkTypes, linkTypeOf } from './links';
 import { edgeById, nodeById, nodeHeight } from './nodes';
@@ -534,6 +536,19 @@ export class CanvasEngine {
             this.state.edges,
             this.state.nodes,
             this.index,
+        );
+    }
+
+    /**
+     * A legenda de agora, derivada inteira do desenho: nenhuma configuração do
+     * usuário entra nela, e diagrama vazio devolve legenda vazia (US-5.1).
+     */
+    legendData(): LegendData {
+        return legendData(
+            this.state,
+            this.index,
+            this.linkIndex,
+            this.sequenceModeOptions,
         );
     }
 

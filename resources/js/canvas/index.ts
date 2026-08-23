@@ -6,6 +6,7 @@ export * from './geometry';
 export * from './icons';
 export * from './labels';
 export * from './layout';
+export * from './legend';
 export * from './links';
 export * from './limits';
 export * from './nodes';

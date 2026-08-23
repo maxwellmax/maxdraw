@@ -31,3 +31,10 @@ Toda mudança de aresta (tipo, rótulo, tracejado, mão dupla, inversão) passa 
 `outSeq` só numera bloco com 2+ saídas válidas; `flowSeq` é DFS que começa pelo nó da categoria `client` sem entrada (`CLIENT_CATEGORY` em catalog.ts), marca cada aresta uma vez (é o que faz ciclo terminar) e cobre órfãos no fim.
 
 Reordenar é mutação de aresta: passa por `CanvasEngine.mutateEdge` e empilha desfazer. Trocar de modo NÃO empilha — é visualização (US-4.3), mas é persistido em `seq_mode`. Os nomes dos três modos vêm do catálogo do servidor (`sequence_modes`); o cliente só define a ordem do menu em `SEQUENCE_MENU` (off, out, flow), que é diferente da `position` do seeder (ordem do ciclo).
+
+## A legenda é derivada, e o recolhimento dela não é do motor
+`legendData()` (canvas/legend.ts) é a fonte única do que a legenda mostra — categorias presentes com contagem, tipos usados, bandeira de "sem tipo" e a seção de sequência. Ela não guarda estado nem aceita configuração: só arestas válidas (`liveEdges`) contam, e a seção de sequência só existe quando `seqMap()` devolve número (modo `off` e desenho não numerável caem no mesmo `null`). Quando a Phase 19 exportar SVG, é daqui que a legenda do arquivo sai — não monte outra.
+
+Glosa e texto do modo vêm do catálogo do servidor (`gloss` do LinkType, `legend_text` do SequenceMode); não crie tabela paralela no cliente. `legendData` devolve `color` só nas categorias — a amostra de traço é neutra por contrato (US-5.1).
+
+O recolhimento é preferência do navegador e mora fora do motor: `prancheta/legend.ts` (chave `sd-legend`, `'0'`/`'1'`) + `composables/useLegend.ts`, com o `ref` no módulo porque o Board precisa dele para zerar `setLegendWidth` — legenda recolhida ou vazia não reserva largura no "enquadrar tudo".

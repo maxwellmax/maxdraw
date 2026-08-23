@@ -1,32 +1,13 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { useLegend } from '@/composables/useLegend';
 
 withDefaults(defineProps<{ visible?: boolean }>(), { visible: false });
 
-const LEGEND_STORAGE_KEY = 'sd-legend-open';
-
-function readStoredOpen(): boolean {
-    try {
-        return localStorage.getItem(LEGEND_STORAGE_KEY) !== 'closed';
-    } catch {
-        return true;
-    }
-}
-
-const open = ref(readStoredOpen());
-
-function toggle(): void {
-    open.value = !open.value;
-
-    try {
-        localStorage.setItem(
-            LEGEND_STORAGE_KEY,
-            open.value ? 'open' : 'closed',
-        );
-    } catch {
-        // Sem storage: a legenda volta aberta na próxima visita.
-    }
-}
+/**
+ * Recolher é preferência do navegador e mora fora daqui, porque o enquadramento
+ * também precisa dela: legenda recolhida não reserva largura (US-5.2).
+ */
+const { open, toggle } = useLegend();
 </script>
 
 <template>

@@ -69,3 +69,18 @@ export function isClientComponent(
 ): boolean {
     return categoryOf(index, slug) === CLIENT_CATEGORY;
 }
+
+/**
+ * As categorias do catálogo na ordem em que ele as entrega, sem repetição. O
+ * índice é por componente, então a mesma categoria aparece uma vez por bloco
+ * dela — e é a primeira aparição que fixa a posição.
+ */
+export function catalogCategories(index: ComponentIndex): CatalogCategory[] {
+    const categories = new Map<string, CatalogCategory>();
+
+    for (const entry of index.values()) {
+        categories.set(entry.category.slug, entry.category);
+    }
+
+    return [...categories.values()];
+}

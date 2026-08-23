@@ -79,3 +79,12 @@ export function dashSample(dash: string | null): string {
 
     return `repeating-linear-gradient(90deg, currentColor 0 ${on}px, transparent ${on}px ${on + off}px)`;
 }
+
+/**
+ * O nome do tipo sem a explicação que vem depois do travessão: `Evento —
+ * assíncrono` vira `Evento`, e `HTTP / REST` fica inteiro. Na legenda quem
+ * ensina é a glosa, não o nome.
+ */
+export function shortLinkName(type: LinkType): string {
+    return type.name.split(' — ')[0];
+}

@@ -1,5 +1,6 @@
 import type { CatalogCategory } from './catalog';
 import type { LinkType } from './links';
+import type { SequenceModeOption } from './sequence';
 import type { Edge, Node, SessionState } from './types';
 
 /**
@@ -96,28 +97,118 @@ export function catalogFixture(): CatalogCategory[] {
 }
 
 /**
- * Os nove tipos de ligação como o `LinkTypeSeeder` os grava. O selo e o
- * `dash_array` são os do catálogo real — mudá-los aqui é mudar o contrato.
+ * Os nove tipos de ligação como o `LinkTypeSeeder` os grava. O selo, o
+ * `dash_array` e a glosa são os do catálogo real — mudá-los aqui é mudar o
+ * contrato.
  */
 export function linkTypesFixture(): LinkType[] {
     return [
-        ['http', 'HTTP / REST', 'HTTP', null, false],
-        ['grpc', 'gRPC', 'gRPC', null, false],
-        ['ws', 'WebSocket', 'WS', null, true],
-        ['event', 'Evento — assíncrono', 'async', '5 4.5', false],
-        ['query', 'Consulta ao banco', 'query', null, false],
-        ['cache', 'Cache lookup', 'cache', null, false],
-        ['repl', 'Replicação', 'replica', '5 4.5', false],
-        ['batch', 'Lote / ETL', 'batch', '5 4.5', false],
-        ['retry', 'Falha / Retry — DLQ', 'retry', '2 4.5', false],
-    ].map(([slug, name, badge, dash, bidir], position) => ({
+        [
+            'http',
+            'HTTP / REST',
+            'HTTP',
+            null,
+            false,
+            'requisição e resposta; o chamador fica esperando',
+        ],
+        [
+            'grpc',
+            'gRPC',
+            'gRPC',
+            null,
+            false,
+            'RPC binário entre serviços, com contrato tipado',
+        ],
+        [
+            'ws',
+            'WebSocket',
+            'WS',
+            null,
+            true,
+            'canal aberto nos dois sentidos; o servidor empurra',
+        ],
+        [
+            'event',
+            'Evento — assíncrono',
+            'async',
+            '5 4.5',
+            false,
+            'o produtor não espera resposta; entrega desacoplada',
+        ],
+        [
+            'query',
+            'Consulta ao banco',
+            'query',
+            null,
+            false,
+            'leitura ou escrita no banco; conta no QPS dele',
+        ],
+        [
+            'cache',
+            'Cache lookup',
+            'cache',
+            null,
+            false,
+            'consulta antes do banco; pode dar miss',
+        ],
+        [
+            'repl',
+            'Replicação',
+            'replica',
+            '5 4.5',
+            false,
+            'cópia do dado para outro nó; há atraso de replicação',
+        ],
+        [
+            'batch',
+            'Lote / ETL',
+            'batch',
+            '5 4.5',
+            false,
+            'volume grande em janelas; fora do caminho do usuário',
+        ],
+        [
+            'retry',
+            'Falha / Retry — DLQ',
+            'retry',
+            '2 4.5',
+            false,
+            'estourou as tentativas e foi para a DLQ; ninguém consumiu',
+        ],
+    ].map(([slug, name, badge, dash, bidir, gloss], position) => ({
         id: position + 1,
         slug: slug as string,
         name: name as string,
         badge_label: badge as string,
         dash_array: dash as string | null,
         is_bidirectional_default: bidir as boolean,
-        gloss: '',
+        gloss: gloss as string,
+    }));
+}
+
+/**
+ * Os três modos de numeração como o `SequenceModeSeeder` os grava, na ordem do
+ * ciclo. O `legend_text` é a linha que a legenda automática mostra.
+ */
+export function sequenceModesFixture(): SequenceModeOption[] {
+    return [
+        [
+            'out',
+            'Ordem de saída de cada bloco',
+            'quando um bloco dispara mais de uma coisa, o número diz o que vem antes',
+        ],
+        [
+            'flow',
+            'Sequência do fluxo inteiro',
+            'os passos na ordem em que acontecem, começando pelo cliente',
+        ],
+        ['off', 'Sem números', ''],
+    ].map(([slug, name, text], position) => ({
+        id: position + 1,
+        slug,
+        name,
+        legend_text: text,
+        position: position + 1,
     }));
 }
 

@@ -52,8 +52,9 @@ it('reserva a largura da legenda ao enquadrar tudo', function () {
         ->toContain('? options.legendWidth + LEGEND_GUTTER')
         ->toContain('const usableWidth = Math.max(size.width - reserved, MIN_FIT_WIDTH);');
 
+    // Legenda vazia ou recolhida não cobre o palco, então não desconta nada (US-5.2).
     expect(frontendSource('pages/Board.vue'))
-        ->toContain('engine.setLegendWidth(isEmpty ? 0 : LEGEND_WIDTH)');
+        ->toContain('engine.setLegendWidth(empty || !open ? 0 : LEGEND_WIDTH)');
 });
 
 it('faz a grade acompanhar pan e zoom', function () {

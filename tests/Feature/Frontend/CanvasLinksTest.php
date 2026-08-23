@@ -31,7 +31,7 @@ it('congela na fixture o traço e a mão dupla de cada tipo do seeder', function
     seedCatalog();
 
     preg_match_all(
-        "/\['(\w+)', '[^']*', '([^']*)', (null|'[^']*'), (true|false)\]/",
+        "/\[\s*'(\w+)',\s*'[^']*',\s*'([^']*)',\s*(null|'[^']*'),\s*(true|false),\s*'([^']*)',?\s*\]/",
         frontendSource('canvas/fixtures.ts'),
         $rows,
         PREG_SET_ORDER
@@ -41,6 +41,7 @@ it('congela na fixture o traço e a mão dupla de cada tipo do seeder', function
         'badge_label' => $row[2],
         'dash_array' => $row[3] === 'null' ? null : trim($row[3], "'"),
         'is_bidirectional_default' => $row[4] === 'true',
+        'gloss' => $row[5],
     ]]);
 
     expect($fixture)->toHaveCount(9);
@@ -50,6 +51,7 @@ it('congela na fixture o traço e a mão dupla de cada tipo do seeder', function
             'badge_label' => $type->badge_label,
             'dash_array' => $type->dash_array,
             'is_bidirectional_default' => $type->is_bidirectional_default,
+            'gloss' => $type->gloss,
         ]])
         ->all()
     )->toBe($fixture->all());
