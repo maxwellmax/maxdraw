@@ -11,6 +11,11 @@ export type Node = {
     y: number;
 };
 
+/**
+ * Uma ligação do diagrama. `order` é a ordem explícita da conexão na sequência
+ * única do desenho: a posição da aresta no array `edges` deixou de ter
+ * significado semântico, e `null` quer dizer "fora da sequência".
+ */
 export type Edge = {
     id: string;
     from: string;
@@ -19,6 +24,7 @@ export type Edge = {
     label: string;
     dashed: boolean;
     bidir: boolean;
+    order: number | null;
 };
 
 /** As duas bandeiras que o usuário alterna à mão, independentes do tipo. */

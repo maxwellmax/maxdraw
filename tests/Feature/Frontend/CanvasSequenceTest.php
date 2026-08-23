@@ -11,9 +11,15 @@ use Inertia\Testing\AssertableInertia;
  * Vitest; o que a suíte PHP guarda aqui é o contrato — os modos vindo do
  * catálogo do servidor, o modo persistido na sessão e a cobertura da fase.
  */
-it('deriva a numeração do desenho, sem campo de ordem na aresta', function () {
+it('guarda a ordem explícita da conexão no campo order da aresta', function () {
     expect(frontendSource('canvas/types.ts'))
-        ->toMatch('/export type Edge = \{\s*id: string;\s*from: string;\s*to: string;\s*kind: string \| null;\s*label: string;\s*dashed: boolean;\s*bidir: boolean;\s*\}/');
+        ->toMatch('/export type Edge = \{\s*id: string;\s*from: string;\s*to: string;\s*kind: string \| null;\s*label: string;\s*dashed: boolean;\s*bidir: boolean;\s*order: number \| null;\s*\}/');
+
+    expect(frontendSource('canvas/order.ts'))
+        ->toContain('export function densify(')
+        ->toContain('export function numberedCount(')
+        ->toContain('export function setOrder(')
+        ->toContain('export function clearOrder(');
 
     expect(frontendSource('canvas/sequence.ts'))
         ->toContain('export function outSeq(')
@@ -159,4 +165,23 @@ it('cobre no Vitest cada teste que a fase pede', function (string $name) {
     'moveSeq_swaps_with_sibling_output_only',
     'moveSeq_refuses_at_both_ends',
     'reordering_changes_flow_traversal_order',
+    'densify_rewrites_sparse_orders_to_1_to_N',
+    'densify_breaks_ties_by_array_position',
+    'densify_includes_orphan_edges',
+    'null_orders_do_not_count_toward_N',
+    'setOrder_pushes_later_edges_forward',
+    'setOrder_moving_forward_lands_at_the_requested_slot',
+    'setOrder_numbers_an_edge_that_was_outside_the_sequence',
+    'setOrder_clamps_out_of_range_values_to_the_nearest_end',
+    'setOrder_refuses_an_unknown_edge_or_a_value_that_is_not_a_number',
+    'clearOrder_removes_from_the_sequence_and_densifies',
+    'clearOrder_is_a_no_op_on_an_edge_already_outside_the_sequence',
+    'no_operation_sequence_produces_a_duplicate_or_a_hole',
+    'new_edge_starts_outside_the_sequence',
+    'removeEdge_densifies_the_remaining_orders',
+    'removeNode_densifies_once_after_removing_its_edges',
+    'restore_keeps_sparse_orders_without_densifying',
+    'undo_restores_the_order_map_after_setEdgeOrder',
+    'undo_restores_the_order_map_after_clearEdgeOrder',
+    'numberedCount_reports_the_current_N',
 ]);

@@ -7,6 +7,7 @@ import { MAX_EDGES, MAX_NODES } from './limits';
 import type { LinkTypeIndex } from './links';
 import { dashArrayOf, isBidirectionalByDefault } from './links';
 import { edgeById, nodeById, nodeHeight } from './nodes';
+import { densify } from './order';
 import type {
     DiagramSnapshot,
     Edge,
@@ -53,7 +54,8 @@ export function addNode(
 
 /**
  * Liga dois blocos. Recusa laço, aresta repetida e o limite de 400 — a aresta
- * nasce sem tipo, que é o que a barra flutuante escolhe depois (US-4.1).
+ * nasce sem tipo, que é o que a barra flutuante escolhe depois (US-4.1), e
+ * fora da sequência: quem numera é o usuário.
  */
 export function addEdge(
     state: SessionState,
@@ -88,6 +90,7 @@ export function addEdge(
         label: '',
         dashed: false,
         bidir: false,
+        order: null,
     };
 
     state.edges.push(edge);
@@ -270,7 +273,10 @@ export function moveSeq(
     return true;
 }
 
-/** Apagar um bloco apaga junto tudo que entrava nele e tudo que saía dele. */
+/**
+ * Apagar um bloco apaga junto tudo que entrava nele e tudo que saía dele. A
+ * sequência é densificada uma única vez, no fim da remoção inteira.
+ */
 export function removeNode(state: SessionState, id: string): boolean {
     if (!nodeById(state.nodes, id)) {
         return false;
@@ -280,6 +286,8 @@ export function removeNode(state: SessionState, id: string): boolean {
     state.edges = state.edges.filter(
         (edge) => edge.from !== id && edge.to !== id,
     );
+
+    densify(state.edges);
 
     return true;
 }
@@ -291,10 +299,16 @@ export function removeEdge(state: SessionState, id: string): boolean {
 
     state.edges = state.edges.filter((edge) => edge.id !== id);
 
+    densify(state.edges);
+
     return true;
 }
 
-/** O retrato do diagrama, desacoplado do estado vivo. */
+/**
+ * O retrato do diagrama, desacoplado do estado vivo. Copia as arestas inteiras,
+ * `order` incluso, e não densifica: desfazer e refazer devolvem o mapa
+ * `id → order` exatamente como estava, mesmo esparso.
+ */
 export function snapshot(state: SessionState): DiagramSnapshot {
     return {
         nodes: state.nodes.map((node) => ({ ...node })),

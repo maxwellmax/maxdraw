@@ -19,6 +19,12 @@ import {
 } from './fixtures';
 import { normalizeLabel } from './labels';
 import { MAX_EDGES, MAX_LABEL_LENGTH, MAX_NODES } from './limits';
+import type { Edge } from './types';
+
+/** O mapa `id → order` do diagrama, que é o que a sequência promete. */
+function orderMap(edges: readonly Edge[]): Record<string, number | null> {
+    return Object.fromEntries(edges.map((edge) => [edge.id, edge.order]));
+}
 
 function componentBySlug(slug: string): CatalogComponent {
     return catalogFixture()
@@ -112,6 +118,30 @@ describe('addEdge', () => {
         expect(first.ok && again.ok).toBe(true);
         expect(state.edges).toHaveLength(1);
     });
+
+    it('new_edge_starts_outside_the_sequence', () => {
+        const state = stateFixture(
+            [nodeFixture('a'), nodeFixture('b', 400), nodeFixture('c', 800)],
+            [edgeFixture('numerada', 'a', 'b', 1)],
+        );
+
+        const result = addEdge(state, 'b', 'c');
+
+        expect(result.ok && result.value.order).toBeNull();
+        expect(state.edges.map((edge) => edge.order)).toEqual([1, null]);
+    });
+
+    it('a ligação já existente volta sem perder o número que tinha', () => {
+        const state = stateFixture(
+            [nodeFixture('a'), nodeFixture('b', 400)],
+            [edgeFixture('e1', 'a', 'b', 1)],
+        );
+
+        const again = addEdge(state, 'a', 'b');
+
+        expect(again.ok && again.value.order).toBe(1);
+        expect(state.edges).toHaveLength(1);
+    });
 });
 
 describe('moveNode', () => {
@@ -191,9 +221,67 @@ describe('removeNode', () => {
         expect(state.nodes).toHaveLength(2);
         expect(state.edges.map((edge) => edge.id)).toEqual(['e2']);
     });
+
+    it('removeEdge_densifies_the_remaining_orders', () => {
+        const state = stateFixture(
+            [nodeFixture('a'), nodeFixture('b', 400), nodeFixture('c', 800)],
+            [
+                edgeFixture('a', 'a', 'b', 1),
+                edgeFixture('b', 'b', 'c', 2),
+                edgeFixture('c', 'c', 'a', 3),
+            ],
+        );
+
+        removeEdge(state, 'b');
+
+        expect(orderMap(state.edges)).toEqual({ a: 1, c: 2 });
+    });
+
+    it('removeNode_densifies_once_after_removing_its_edges', () => {
+        const state = stateFixture(
+            [
+                nodeFixture('hub'),
+                nodeFixture('a', 400),
+                nodeFixture('b', 800),
+                nodeFixture('c', 1200),
+            ],
+            [
+                edgeFixture('h1', 'hub', 'a', 1),
+                edgeFixture('sobra1', 'a', 'b', 2),
+                edgeFixture('h2', 'hub', 'b', 3),
+                edgeFixture('sobra2', 'b', 'c', 4),
+                edgeFixture('h3', 'c', 'hub', 5),
+                edgeFixture('sobra3', 'c', 'a', 6),
+            ],
+        );
+
+        removeNode(state, 'hub');
+
+        expect(orderMap(state.edges)).toEqual({
+            sobra1: 1,
+            sobra2: 2,
+            sobra3: 3,
+        });
+    });
 });
 
 describe('snapshot', () => {
+    it('restore_keeps_sparse_orders_without_densifying', () => {
+        const state = stateFixture(
+            [nodeFixture('a'), nodeFixture('b', 400)],
+            [edgeFixture('e1', 'a', 'b', 1), edgeFixture('e2', 'b', 'a', 3)],
+        );
+
+        const taken = snapshot(state);
+
+        expect(orderMap(taken.edges)).toEqual({ e1: 1, e2: 3 });
+
+        state.edges[1].order = 2;
+        restore(state, taken);
+
+        expect(orderMap(state.edges)).toEqual({ e1: 1, e2: 3 });
+    });
+
     it('não compartilha referência com o estado vivo', () => {
         const state = stateFixture([nodeFixture('a')], []);
         const taken = snapshot(state);

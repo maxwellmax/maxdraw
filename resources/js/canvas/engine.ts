@@ -28,6 +28,7 @@ import { legendData } from './legend';
 import type { LinkType, LinkTypeIndex } from './links';
 import { indexLinkTypes, linkTypeOf } from './links';
 import { edgeById, nodeById, nodeHeight } from './nodes';
+import { clearOrder, numberedCount, setOrder } from './order';
 import type {
     SequenceMap,
     SequenceMenuItem,
@@ -135,6 +136,11 @@ export class CanvasEngine {
     /** As três opções do menu de numeração, na ordem em que a lista as mostra. */
     get sequenceModes(): SequenceMenuItem[] {
         return sequenceMenu(this.sequenceModeOptions);
+    }
+
+    /** O `N` da sequência: quantas arestas estão numeradas agora. */
+    get numberedCount(): number {
+        return numberedCount(this.state.edges);
     }
 
     get isEmpty(): boolean {
@@ -463,6 +469,24 @@ export class CanvasEngine {
 
     reverseEdge(id: string): boolean {
         return this.mutateEdge(() => reverseEdge(this.state, id));
+    }
+
+    /** O número que a aresta mostra, ou `null` quando ela está fora da sequência. */
+    orderOf(edge: Edge): number | null {
+        return edge.order;
+    }
+
+    /**
+     * Põe a aresta na posição pedida da sequência. Cada commit do campo vale um
+     * passo de desfazer, e o desfazer devolve o mapa `id → order` de todas as
+     * arestas que o empurrão deslocou.
+     */
+    setEdgeOrder(id: string, k: number): boolean {
+        return this.mutateEdge(() => setOrder(this.state.edges, id, k));
+    }
+
+    clearEdgeOrder(id: string): boolean {
+        return this.mutateEdge(() => clearOrder(this.state.edges, id));
     }
 
     /** Tipo, rótulo e bandeiras mudam o desenho, então todas empilham desfazer. */

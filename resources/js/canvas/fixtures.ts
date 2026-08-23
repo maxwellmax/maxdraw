@@ -217,8 +217,22 @@ export function nodeFixture(id: string, x = 0, y = 0, type = 'api'): Node {
     return { id, type, label: id, x, y };
 }
 
-export function edgeFixture(id: string, from: string, to: string): Edge {
-    return { id, from, to, kind: null, label: '', dashed: false, bidir: false };
+export function edgeFixture(
+    id: string,
+    from: string,
+    to: string,
+    order: number | null = null,
+): Edge {
+    return {
+        id,
+        from,
+        to,
+        kind: null,
+        label: '',
+        dashed: false,
+        bidir: false,
+        order,
+    };
 }
 
 export function stateFixture(

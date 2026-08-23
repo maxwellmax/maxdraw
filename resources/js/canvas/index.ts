@@ -10,6 +10,7 @@ export * from './legend';
 export * from './links';
 export * from './limits';
 export * from './nodes';
+export * from './order';
 export * from './sequence';
 export * from './svg';
 export * from './types';

@@ -24,6 +24,7 @@ function edge(from: string, to: string): Edge {
         label: '',
         dashed: false,
         bidir: false,
+        order: null,
     };
 }
 

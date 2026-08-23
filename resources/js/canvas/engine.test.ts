@@ -369,6 +369,80 @@ describe('tipo e bandeiras da ligação', () => {
     });
 });
 
+describe('ordem explícita', () => {
+    function numbered(): CanvasEngine {
+        return engineWith(
+            stateFixture(
+                [
+                    nodeFixture('a', 0, 0, 'browser'),
+                    nodeFixture('b', 400, 0, 'api'),
+                    nodeFixture('c', 800, 0, 'sql'),
+                    nodeFixture('d', 1200, 0, 'worker'),
+                ],
+                [
+                    edgeFixture('e1', 'a', 'b', 1),
+                    edgeFixture('e2', 'b', 'c', 2),
+                    edgeFixture('e3', 'c', 'd', 3),
+                ],
+            ),
+        );
+    }
+
+    function orderMap(engine: CanvasEngine): Record<string, number | null> {
+        return Object.fromEntries(
+            engine.edges.map((edge) => [edge.id, edge.order]),
+        );
+    }
+
+    it('undo_restores_the_order_map_after_setEdgeOrder', () => {
+        const engine = numbered();
+
+        expect(engine.setEdgeOrder('e3', 1)).toBe(true);
+        expect(engine.undoDepth).toBe(1);
+        expect(orderMap(engine)).toEqual({ e3: 1, e1: 2, e2: 3 });
+
+        engine.undo();
+
+        expect(orderMap(engine)).toEqual({ e1: 1, e2: 2, e3: 3 });
+        expect(engine.undoDepth).toBe(0);
+    });
+
+    it('undo_restores_the_order_map_after_clearEdgeOrder', () => {
+        const engine = numbered();
+
+        expect(engine.clearEdgeOrder('e2')).toBe(true);
+        expect(engine.undoDepth).toBe(1);
+        expect(orderMap(engine)).toEqual({ e1: 1, e2: null, e3: 2 });
+        expect(engine.numberedCount).toBe(2);
+
+        engine.undo();
+
+        expect(orderMap(engine)).toEqual({ e1: 1, e2: 2, e3: 3 });
+        expect(engine.numberedCount).toBe(3);
+    });
+
+    it('numberedCount_reports_the_current_N', () => {
+        const engine = numbered();
+
+        expect(engine.numberedCount).toBe(3);
+        expect(engine.orderOf(engine.edge('e2')!)).toBe(2);
+
+        engine.addEdge('a', 'c');
+
+        expect(engine.numberedCount).toBe(3);
+        expect(engine.orderOf(engine.edges[3])).toBeNull();
+    });
+
+    it('não empilha desfazer quando a ordem não muda', () => {
+        const engine = numbered();
+
+        expect(engine.setEdgeOrder('e1', 1)).toBe(false);
+        expect(engine.setEdgeOrder('sumiu', 2)).toBe(false);
+        expect(engine.clearEdgeOrder('sumiu')).toBe(false);
+        expect(engine.undoDepth).toBe(0);
+    });
+});
+
 describe('desfazer', () => {
     it('undo_restores_previous_nodes_and_edges', () => {
         const engine = engineWith();
