@@ -31,7 +31,7 @@ class TrainingSessionResource extends JsonResource
             'id' => $this->id,
             'problem_id' => $this->problem_id,
             'duration_minutes' => $this->duration_minutes,
-            'seq_mode' => $this->sequenceMode->slug,
+            'show_connection_order' => $this->show_connection_order,
             'elapsed_seconds' => $this->elapsed_seconds,
             'notes' => $this->notes,
             'nodes' => $this->nodes,

@@ -4,7 +4,6 @@ use App\Models\EstimateMode;
 use App\Models\LinkType;
 use App\Models\ProblemItemType;
 use App\Models\ProblemLevel;
-use App\Models\SequenceMode;
 use App\Models\SessionDuration;
 use Database\Seeders\CatalogSeeder;
 
@@ -61,22 +60,6 @@ test('every_link_type_carries_its_teaching_gloss', function () {
 test('exactly_one_default_duration', function () {
     expect(SessionDuration::query()->pluck('minutes')->all())->toBe([30, 45, 60])
         ->and(SessionDuration::query()->where('is_default', true)->pluck('minutes')->all())->toBe([45]);
-});
-
-test('sequence_mode_out_is_first', function () {
-    expect(SequenceMode::query()->pluck('position', 'slug')->all())->toBe([
-        'out' => 1,
-        'flow' => 2,
-        'off' => 3,
-    ]);
-});
-
-test('sequence_modes_carry_the_prototype_legend_text', function () {
-    expect(SequenceMode::query()->pluck('legend_text', 'slug')->all())->toBe([
-        'out' => 'quando um bloco dispara mais de uma coisa, o número diz o que vem antes',
-        'flow' => 'os passos na ordem em que acontecem, começando pelo cliente',
-        'off' => '',
-    ]);
 });
 
 test('estimate_modes_highlight_the_matching_output_row', function () {

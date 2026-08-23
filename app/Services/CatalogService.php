@@ -7,7 +7,6 @@ use App\Http\Resources\EstimateModeResource;
 use App\Http\Resources\LinkTypeResource;
 use App\Http\Resources\PhaseResource;
 use App\Http\Resources\ProblemResource;
-use App\Http\Resources\SequenceModeResource;
 use App\Http\Resources\SessionDurationResource;
 use App\Models\Component;
 use App\Models\ComponentCategory;
@@ -15,7 +14,6 @@ use App\Models\EstimateMode;
 use App\Models\LinkType;
 use App\Models\Phase;
 use App\Models\Problem;
-use App\Models\SequenceMode;
 use App\Models\SessionDuration;
 use App\Models\TrainingSession;
 use Illuminate\Database\Eloquent\Builder;
@@ -41,7 +39,6 @@ class CatalogService
             'component_categories' => ComponentCategoryResource::collection($this->categories($components))->resolve(),
             'link_types' => LinkTypeResource::collection($this->linkTypes($session))->resolve(),
             'phases' => PhaseResource::collection($this->phases())->resolve(),
-            'sequence_modes' => SequenceModeResource::collection(SequenceMode::query()->active()->get())->resolve(),
             'session_durations' => SessionDurationResource::collection(SessionDuration::query()->active()->get())->resolve(),
             'estimate_modes' => EstimateModeResource::collection(EstimateMode::query()->active()->get())->resolve(),
         ];

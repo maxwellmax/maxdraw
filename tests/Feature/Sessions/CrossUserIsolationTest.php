@@ -41,7 +41,7 @@ test('cross_user_read_write_delete_is_blocked_on_every_session_route', function 
     $intruder = User::factory()->create();
     $session = sessionOfAnotherUser();
     $owner = $session->user;
-    $before = sessionRowSnapshot($session);
+    $before = sessionRowSnapshot($session->fresh());
 
     $response = $this->actingAs($intruder)->json(
         $method,

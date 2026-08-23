@@ -22,7 +22,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $user_id
  * @property int|null $problem_id
  * @property int $session_duration_id
- * @property int $sequence_mode_id
+ * @property bool $show_connection_order
  * @property int $elapsed_seconds
  * @property string|null $notes
  * @property array<int, array<string, mixed>> $nodes
@@ -36,13 +36,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property-read User $user
  * @property-read Problem|null $problem
  * @property-read SessionDuration $sessionDuration
- * @property-read SequenceMode $sequenceMode
  */
 #[Fillable([
     'user_id',
     'problem_id',
     'session_duration_id',
-    'sequence_mode_id',
+    'show_connection_order',
     'elapsed_seconds',
     'notes',
     'nodes',
@@ -65,6 +64,7 @@ class TrainingSession extends Model
     protected function casts(): array
     {
         return [
+            'show_connection_order' => 'boolean',
             'elapsed_seconds' => 'integer',
             'nodes' => 'array',
             'edges' => 'array',
@@ -108,14 +108,6 @@ class TrainingSession extends Model
     public function sessionDuration(): BelongsTo
     {
         return $this->belongsTo(SessionDuration::class);
-    }
-
-    /**
-     * @return BelongsTo<SequenceMode, $this>
-     */
-    public function sequenceMode(): BelongsTo
-    {
-        return $this->belongsTo(SequenceMode::class);
     }
 
     /**

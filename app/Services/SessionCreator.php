@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Models\SequenceMode;
 use App\Models\SessionDuration;
 use App\Models\TrainingSession;
 use App\Models\User;
@@ -10,8 +9,8 @@ use RuntimeException;
 
 /**
  * O único caminho pelo qual uma sessão de treino nasce: vazia, com os padrões
- * do catálogo (duração 45, numeração `out`, estimativa por usuários) e já como
- * a sessão corrente do dono (US-11.2).
+ * do catálogo (duração 45, estimativa por usuários) e já com a numeração das
+ * conexões visível, como a sessão corrente do dono (US-11.2).
  */
 class SessionCreator
 {
@@ -38,7 +37,7 @@ class SessionCreator
             'user_id' => $user->id,
             'problem_id' => $problemId,
             'session_duration_id' => $this->durationId($durationMinutes),
-            'sequence_mode_id' => $this->defaultSequenceModeId(),
+            'show_connection_order' => true,
             'elapsed_seconds' => 0,
             'notes' => null,
             'nodes' => [],
@@ -57,17 +56,6 @@ class SessionCreator
 
         if (is_null($id)) {
             throw new RuntimeException('O catálogo de durações não tem a duração pedida — rode o CatalogSeeder.');
-        }
-
-        return (int) $id;
-    }
-
-    private function defaultSequenceModeId(): int
-    {
-        $id = SequenceMode::query()->where('slug', SequenceMode::DEFAULT_SLUG)->value('id');
-
-        if (is_null($id)) {
-            throw new RuntimeException('O catálogo de modos de numeração não foi seedado.');
         }
 
         return (int) $id;

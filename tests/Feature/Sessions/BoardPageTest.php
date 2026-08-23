@@ -40,7 +40,7 @@ test('board_returns_current_session_and_catalog', function () {
             ->where('session.notes', 'anotações do treino')
             ->where('session.elapsed_seconds', 742)
             ->where('session.duration_minutes', 45)
-            ->where('session.seq_mode', 'out')
+            ->where('session.show_connection_order', true)
             ->where('session.checks', ['1' => true])
             ->count('session.nodes', 3)
             ->count('session.edges', 2)
@@ -49,7 +49,6 @@ test('board_returns_current_session_and_catalog', function () {
             ->has('catalog.component_categories')
             ->has('catalog.link_types')
             ->has('catalog.phases')
-            ->has('catalog.sequence_modes')
             ->has('catalog.session_durations')
             ->has('catalog.estimate_modes')
             ->etc());
@@ -66,7 +65,7 @@ test('user_without_session_gets_a_fresh_empty_one', function () {
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->where('session.problem_id', null)
             ->where('session.duration_minutes', 45)
-            ->where('session.seq_mode', 'out')
+            ->where('session.show_connection_order', true)
             ->where('session.elapsed_seconds', 0)
             ->where('session.notes', null)
             ->where('session.nodes', [])
@@ -79,7 +78,7 @@ test('user_without_session_gets_a_fresh_empty_one', function () {
 
     expect($created->user_id)->toBe($user->id)
         ->and($created->sessionDuration->minutes)->toBe(45)
-        ->and($created->sequenceMode->slug)->toBe('out');
+        ->and($created->show_connection_order)->toBeTrue();
 });
 
 test('current_session_is_the_most_recently_opened', function () {
@@ -109,9 +108,16 @@ test('catalog_payload_contains_expected_counts', function () {
         ->and($catalog['link_types'])->toHaveCount(9)
         ->and($catalog['phases'])->toHaveCount(5)
         ->and(collect($catalog['phases'])->flatMap(fn (array $phase): array => $phase['checklist_items']))->toHaveCount(25)
-        ->and($catalog['sequence_modes'])->toHaveCount(3)
         ->and($catalog['session_durations'])->toHaveCount(3)
-        ->and($catalog['estimate_modes'])->toHaveCount(2);
+        ->and($catalog['estimate_modes'])->toHaveCount(2)
+        ->and(array_keys($catalog))->toBe([
+            'problems',
+            'component_categories',
+            'link_types',
+            'phases',
+            'session_durations',
+            'estimate_modes',
+        ]);
 });
 
 test('the_catalog_carries_the_three_lists_of_every_problem', function () {
@@ -195,7 +201,61 @@ test('the_board_payload_never_leaks_the_owner_column', function () {
         ->assertOk()
         ->viewData('page')['props']['session'];
 
-    expect($session)->not->toHaveKey('user_id')
-        ->and($session)->not->toHaveKey('session_duration_id')
-        ->and($session)->not->toHaveKey('sequence_mode_id');
+    expect(array_keys($session))->toBe([
+        'id',
+        'problem_id',
+        'duration_minutes',
+        'show_connection_order',
+        'elapsed_seconds',
+        'notes',
+        'nodes',
+        'edges',
+        'checks',
+        'estimate',
+        'last_opened_at',
+        'updated_at',
+    ]);
+});
+
+test('the_board_carries_the_visibility_of_the_connection_order_and_the_number_of_every_edge', function () {
+    $user = User::factory()->create();
+
+    $session = TrainingSession::factory()->create([
+        'user_id' => $user->id,
+        'show_connection_order' => false,
+        'nodes' => [
+            ['id' => 'n1', 'type' => 'api', 'label' => 'API', 'x' => 10, 'y' => 20],
+            ['id' => 'n2', 'type' => 'sql', 'label' => 'Banco', 'x' => 90, 'y' => 20],
+        ],
+        'edges' => [
+            ['id' => 'e1', 'from' => 'n1', 'to' => 'n2', 'kind' => 'query', 'label' => '', 'dashed' => false, 'bidir' => false, 'order' => 2],
+            ['id' => 'e2', 'from' => 'n2', 'to' => 'n1', 'kind' => 'cache', 'label' => '', 'dashed' => false, 'bidir' => false, 'order' => null],
+        ],
+    ]);
+
+    $this->actingAs($user)
+        ->get(route('board'))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('session.id', $session->id)
+            ->where('session.show_connection_order', false)
+            ->where('session.edges.0.order', 2)
+            ->where('session.edges.1.order', null)
+            ->etc());
+});
+
+test('turning_the_connection_order_off_survives_a_reload_of_the_board', function () {
+    $user = User::factory()->create();
+    $session = TrainingSession::factory()->create(['user_id' => $user->id]);
+
+    $this->actingAs($user)
+        ->putJson(route('sessions.update', $session), autosaveBody(['show_connection_order' => false]))
+        ->assertOk();
+
+    $payload = $this->actingAs($user)
+        ->get(route('board'))
+        ->assertOk()
+        ->viewData('page')['props']['session'];
+
+    expect($payload['show_connection_order'])->toBe(false);
 });

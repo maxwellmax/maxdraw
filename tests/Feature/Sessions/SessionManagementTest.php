@@ -1,7 +1,6 @@
 <?php
 
 use App\Models\Problem;
-use App\Models\SequenceMode;
 use App\Models\SessionDuration;
 use App\Models\TrainingSession;
 use App\Models\User;
@@ -75,7 +74,7 @@ test('opening_a_session_restores_full_state', function () {
         'checks' => [7 => true, 12 => true],
         'estimate' => ['mode' => 'month', 'dau' => 0, 'act' => 0, 'per_month' => 500000000, 'ratio' => 100, 'size' => 1, 'peak' => 3, 'ret' => 3],
         'elapsed_seconds' => 1800,
-        'sequence_mode_id' => SequenceMode::query()->where('slug', 'flow')->value('id'),
+        'show_connection_order' => false,
         'last_opened_at' => now()->subDays(3),
     ]);
 
@@ -92,7 +91,7 @@ test('opening_a_session_restores_full_state', function () {
         ->assertJsonPath('data.checks', ['7' => true, '12' => true])
         ->assertJsonPath('data.estimate.per_month', 500000000)
         ->assertJsonPath('data.elapsed_seconds', 1800)
-        ->assertJsonPath('data.seq_mode', 'flow')
+        ->assertJsonPath('data.show_connection_order', false)
         ->assertJsonCount(4, 'data.nodes')
         ->assertJsonCount(3, 'data.edges');
 
@@ -102,7 +101,7 @@ test('opening_a_session_restores_full_state', function () {
         ->and($current->notes)->toBe('o que eu escrevi ontem')
         ->and($current->checks)->toBe(['7' => true, '12' => true])
         ->and($current->elapsed_seconds)->toBe(1800)
-        ->and($current->sequenceMode->slug)->toBe('flow');
+        ->and($current->show_connection_order)->toBeFalse();
 });
 
 test('opening_a_foreign_session_never_restores_it', function () {
@@ -161,7 +160,7 @@ test('new_session_starts_empty_with_defaults', function () {
         ->assertJsonPath('data.notes', null)
         ->assertJsonPath('data.elapsed_seconds', 0)
         ->assertJsonPath('data.duration_minutes', 45)
-        ->assertJsonPath('data.seq_mode', 'out')
+        ->assertJsonPath('data.show_connection_order', true)
         ->assertJsonPath('data.problem_id', null)
         ->assertJsonPath('data.estimate', SessionCreator::DEFAULT_ESTIMATE)
         ->json('data.id');
@@ -267,7 +266,7 @@ test('deleting_the_only_session_creates_an_empty_one', function () {
         ->and($replacement->notes)->toBeNull()
         ->and($replacement->elapsed_seconds)->toBe(0)
         ->and($replacement->duration_minutes)->toBe(45)
-        ->and($replacement->sequenceMode->slug)->toBe('out')
+        ->and($replacement->show_connection_order)->toBeTrue()
         ->and($replacement->estimate)->toBe(SessionCreator::DEFAULT_ESTIMATE)
         ->and(currentSession($user)->id)->toBe($replacement->id);
 });

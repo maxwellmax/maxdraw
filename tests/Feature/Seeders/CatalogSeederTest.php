@@ -8,7 +8,6 @@ use App\Models\LinkType;
 use App\Models\Phase;
 use App\Models\ProblemItemType;
 use App\Models\ProblemLevel;
-use App\Models\SequenceMode;
 use App\Models\SessionDuration;
 use App\Models\User;
 use Database\Seeders\CatalogSeeder;
@@ -86,7 +85,6 @@ test('catalog_seed_counts_match_the_prototype', function () {
     expect([
         ProblemLevel::query()->count(),
         ProblemItemType::query()->count(),
-        SequenceMode::query()->count(),
         SessionDuration::query()->count(),
         EstimateMode::query()->count(),
         LinkType::query()->count(),
@@ -94,5 +92,5 @@ test('catalog_seed_counts_match_the_prototype', function () {
         Component::query()->count(),
         Phase::query()->count(),
         ChecklistItem::query()->count(),
-    ])->toBe([3, 3, 3, 3, 2, 9, 6, 28, 5, 25]);
+    ])->toBe([3, 3, 3, 2, 9, 6, 28, 5, 25]);
 });

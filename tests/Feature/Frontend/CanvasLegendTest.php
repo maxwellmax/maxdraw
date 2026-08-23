@@ -1,7 +1,6 @@
 <?php
 
 use App\Models\LinkType;
-use App\Models\SequenceMode;
 use App\Models\User;
 use Inertia\Testing\AssertableInertia;
 
@@ -164,11 +163,6 @@ it('tira a glosa do catálogo do servidor, sem tabela paralela no cliente', func
         expect($client)->not->toContain($gloss);
     }
 
-    // O modo de catálogo saiu de cena: nenhum texto dele sobra no cliente.
-    foreach (SequenceMode::query()->pluck('legend_text')->filter() as $text) {
-        expect($client)->not->toContain($text);
-    }
-
     expect(frontendSource('canvas/legend.ts'))
         ->toContain('gloss: type.gloss,')
         ->toContain("export const ORDER_NAME = 'ordem das conexões';")
@@ -181,7 +175,7 @@ it('tira a glosa do catálogo do servidor, sem tabela paralela no cliente', func
             ->component('Board')
             ->count('catalog.link_types', 9)
             ->where('catalog.link_types.0.gloss', 'requisição e resposta; o chamador fica esperando')
-            ->where('catalog.sequence_modes.0.legend_text', 'quando um bloco dispara mais de uma coisa, o número diz o que vem antes')
+            ->missing('catalog.sequence_modes')
             ->etc());
 });
 

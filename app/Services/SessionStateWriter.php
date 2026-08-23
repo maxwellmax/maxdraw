@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Models\SequenceMode;
 use App\Models\SessionDuration;
 use App\Models\TrainingSession;
 use Illuminate\Support\Arr;
@@ -21,14 +20,10 @@ class SessionStateWriter
     public function write(TrainingSession $session, array $payload): TrainingSession
     {
         return DB::transaction(function () use ($session, $payload): TrainingSession {
-            $session->fill(Arr::only($payload, ['problem_id', 'notes', 'elapsed_seconds', 'nodes', 'edges', 'checks', 'estimate']));
+            $session->fill(Arr::only($payload, ['problem_id', 'notes', 'elapsed_seconds', 'show_connection_order', 'nodes', 'edges', 'checks', 'estimate']));
 
             if (array_key_exists('duration_minutes', $payload)) {
                 $session->session_duration_id = $this->durationId((int) $payload['duration_minutes']);
-            }
-
-            if (array_key_exists('seq_mode', $payload)) {
-                $session->sequence_mode_id = $this->sequenceModeId((string) $payload['seq_mode']);
             }
 
             $session->save();
@@ -40,10 +35,5 @@ class SessionStateWriter
     private function durationId(int $minutes): int
     {
         return (int) SessionDuration::query()->where('minutes', $minutes)->value('id');
-    }
-
-    private function sequenceModeId(string $slug): int
-    {
-        return (int) SequenceMode::query()->where('slug', $slug)->value('id');
     }
 }

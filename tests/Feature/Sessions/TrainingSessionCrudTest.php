@@ -62,7 +62,7 @@ test('store_creates_empty_session_with_defaults', function () {
     $response->assertJsonPath('data.id', $session->id)
         ->assertJsonPath('data.problem_id', null)
         ->assertJsonPath('data.duration_minutes', 45)
-        ->assertJsonPath('data.seq_mode', 'out')
+        ->assertJsonPath('data.show_connection_order', true)
         ->assertJsonPath('data.elapsed_seconds', 0)
         ->assertJsonPath('data.notes', null)
         ->assertJsonPath('data.nodes', [])
@@ -192,7 +192,7 @@ test('deleting_last_session_creates_an_empty_one', function () {
         ->and($replacement->notes)->toBeNull()
         ->and($replacement->elapsed_seconds)->toBe(0)
         ->and($replacement->duration_minutes)->toBe(45)
-        ->and($replacement->sequenceMode->slug)->toBe('out')
+        ->and($replacement->show_connection_order)->toBeTrue()
         ->and(currentSessionId($user))->toBe($replacement->id);
 });
 

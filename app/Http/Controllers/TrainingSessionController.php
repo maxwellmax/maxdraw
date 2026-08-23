@@ -37,7 +37,7 @@ class TrainingSessionController extends Controller
 
         return TrainingSessionResource::collection(
             TrainingSession::ownedBy($request->user())
-                ->with(['sessionDuration', 'sequenceMode'])
+                ->with('sessionDuration')
                 ->orderByDesc('last_opened_at')
                 ->orderByDesc('id')
                 ->get()

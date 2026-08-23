@@ -10,7 +10,6 @@ use App\Models\Problem;
 use App\Models\ProblemItem;
 use App\Models\ProblemItemType;
 use App\Models\ProblemLevel;
-use App\Models\SequenceMode;
 use App\Models\SessionDuration;
 use Database\Seeders\CatalogSeeder;
 use Illuminate\Database\Eloquent\Model;
@@ -67,7 +66,7 @@ function something()
 
 /**
  * O payload do autosave como o cliente o envia: diagrama, checklist, notas,
- * estimativa, tempo, duração e modo de numeração de uma vez.
+ * estimativa, tempo, duração e exibição da ordem de uma vez.
  *
  * @param  array<string, mixed>  $overrides
  * @return array<string, mixed>
@@ -80,12 +79,12 @@ function autosaveBody(array $overrides = []): array
             ['id' => 'n2', 'type' => 'sql', 'label' => 'Banco', 'x' => 520, 'y' => 180],
         ],
         'edges' => [
-            ['id' => 'e1', 'from' => 'n1', 'to' => 'n2', 'kind' => 'query', 'label' => 'SELECT', 'dashed' => false, 'bidir' => false],
+            ['id' => 'e1', 'from' => 'n1', 'to' => 'n2', 'kind' => 'query', 'label' => 'SELECT', 'dashed' => false, 'bidir' => false, 'order' => 1],
         ],
         'checks' => [],
         'notes' => 'anotações do treino',
         'elapsed_seconds' => 742,
-        'seq_mode' => 'flow',
+        'show_connection_order' => true,
         'duration_minutes' => 60,
         'estimate' => [
             'mode' => 'month',
@@ -102,8 +101,8 @@ function autosaveBody(array $overrides = []): array
 
 /**
  * O catálogo versionado que a aplicação lê em runtime. A prancheta não sobe sem
- * ele: sessão nova precisa da duração padrão e do modo de numeração, e o
- * payload do autosave é validado contra os slugs seedados aqui.
+ * ele: sessão nova precisa da duração padrão, e o payload do autosave é
+ * validado contra os slugs seedados aqui.
  */
 function seedCatalog(): void
 {
@@ -111,7 +110,7 @@ function seedCatalog(): void
 }
 
 /**
- * As 14 tabelas de domínio do `database-schema.md`, na ordem em que as
+ * As 13 tabelas de domínio do `database-schema.md`, na ordem em que as
  * migrations as criam. Não inclui as tabelas de infraestrutura do Laravel.
  *
  * @return array<int, string>
@@ -123,7 +122,6 @@ function domainTables(): array
         'problem_item_types',
         'component_categories',
         'link_types',
-        'sequence_modes',
         'session_durations',
         'estimate_modes',
         'problems',
@@ -185,7 +183,6 @@ function catalogTables(): array
         'problem_item_types',
         'component_categories',
         'link_types',
-        'sequence_modes',
         'session_durations',
         'estimate_modes',
         'problems',
@@ -211,7 +208,6 @@ function catalogModels(): array
         LinkType::class,
         Problem::class,
         ProblemItem::class,
-        SequenceMode::class,
         SessionDuration::class,
         EstimateMode::class,
         Phase::class,
@@ -328,7 +324,6 @@ dataset('lookupModels', [
     'problem_item_types' => [ProblemItemType::class],
     'component_categories' => [ComponentCategory::class],
     'link_types' => [LinkType::class],
-    'sequence_modes' => [SequenceMode::class],
     'session_durations' => [SessionDuration::class],
     'estimate_modes' => [EstimateMode::class],
 ]);

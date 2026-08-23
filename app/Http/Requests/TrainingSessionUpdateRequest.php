@@ -6,7 +6,6 @@ use App\Models\ChecklistItem;
 use App\Models\Component;
 use App\Models\EstimateMode;
 use App\Models\LinkType;
-use App\Models\SequenceMode;
 use App\Models\SessionDuration;
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
@@ -37,14 +36,12 @@ class TrainingSessionUpdateRequest extends FormRequest
     /**
      * Prepare the data for validation.
      *
-     * O que dá para consertar não derruba um autosave: numeração inválida vira
-     * `out` (US-4.3), número negativo na estimativa vira zero (US-6.2) e o texto
-     * que o framework anulou volta a ser string vazia.
+     * O que dá para consertar não derruba um autosave: número negativo na
+     * estimativa vira zero (US-6.2) e o texto que o framework anulou volta a
+     * ser string vazia.
      */
     protected function prepareForValidation(): void
     {
-        $this->merge(['seq_mode' => $this->normalizedSeqMode()]);
-
         if (is_array($this->input('estimate'))) {
             $this->merge(['estimate' => $this->normalizedEstimate()]);
         }
@@ -77,7 +74,7 @@ class TrainingSessionUpdateRequest extends FormRequest
             'notes' => ['sometimes', 'nullable', 'string', 'max:'.self::MAX_NOTES],
             'elapsed_seconds' => ['sometimes', 'integer', 'min:0'],
             'duration_minutes' => ['sometimes', 'integer', Rule::in(SessionDuration::query()->pluck('minutes')->all())],
-            'seq_mode' => ['required', 'string', Rule::in(SequenceMode::query()->pluck('slug')->all())],
+            'show_connection_order' => ['sometimes', 'boolean'],
 
             'nodes' => ['sometimes', 'array', 'max:'.self::MAX_NODES],
             'nodes.*.id' => ['required', 'string', 'distinct'],
@@ -94,6 +91,7 @@ class TrainingSessionUpdateRequest extends FormRequest
             'edges.*.label' => ['sometimes', 'nullable', 'string', 'max:'.self::MAX_LABEL],
             'edges.*.dashed' => ['sometimes', 'boolean'],
             'edges.*.bidir' => ['sometimes', 'boolean'],
+            'edges.*.order' => ['sometimes', 'nullable', 'integer', 'min:1', 'max:'.self::MAX_EDGES, $this->orderIsUniqueInTheDiagram()],
 
             'checks' => ['sometimes', 'array', $this->knownChecklistItems()],
             'checks.*' => ['boolean'],
@@ -121,6 +119,9 @@ class TrainingSessionUpdateRequest extends FormRequest
             'edges.*.label.max' => 'O rótulo da ligação tem no máximo '.self::inWords(self::MAX_LABEL).' caracteres.',
             'nodes.*.type.in' => 'Este componente não existe no catálogo.',
             'edges.*.kind.in' => 'Este tipo de ligação não existe no catálogo.',
+            'edges.*.order.integer' => 'A ordem da ligação é um número inteiro.',
+            'edges.*.order.min' => 'A ordem da ligação começa em 1.',
+            'edges.*.order.max' => 'A ordem da ligação vai até '.self::inWords(self::MAX_EDGES).'.',
             'edges.*.from.in' => 'A ligação precisa sair de um bloco do próprio diagrama.',
             'edges.*.to.in' => 'A ligação precisa chegar a um bloco do próprio diagrama.',
             'duration_minutes.in' => 'A duração do treino é de 30, 45 ou 60 minutos.',
@@ -177,6 +178,33 @@ class TrainingSessionUpdateRequest extends FormRequest
     }
 
     /**
+     * A ordem é explícita e é do diagrama inteiro: dois números iguais deixam
+     * de ser uma ordem. O erro é reportado no próprio índice, para que o
+     * cliente saiba qual campo destacar.
+     */
+    private function orderIsUniqueInTheDiagram(): Closure
+    {
+        return function (string $attribute, mixed $value, Closure $fail): void {
+            if (! is_numeric($value)) {
+                return;
+            }
+
+            $index = (string) str($attribute)->after('edges.')->before('.order');
+
+            $repeated = $this->collect('edges')
+                ->except([$index])
+                ->contains(fn (mixed $edge): bool => is_array($edge)
+                    && isset($edge['order'])
+                    && is_numeric($edge['order'])
+                    && (int) $edge['order'] === (int) $value);
+
+            if ($repeated) {
+                $fail('Duas ligações não podem ter o mesmo número de ordem.');
+            }
+        };
+    }
+
+    /**
      * O mapa `checks` é chaveado por `checklist_items.id`: chave que não seja um
      * item do catálogo derruba a gravação (US-7.1).
      */
@@ -203,15 +231,6 @@ class TrainingSessionUpdateRequest extends FormRequest
     private function linkKinds(): array
     {
         return [...LinkType::query()->pluck('slug')->all(), ''];
-    }
-
-    private function normalizedSeqMode(): string
-    {
-        $slug = $this->input('seq_mode');
-
-        return is_string($slug) && SequenceMode::query()->where('slug', $slug)->exists()
-            ? $slug
-            : SequenceMode::DEFAULT_SLUG;
     }
 
     /**

@@ -66,8 +66,19 @@ function edgesOfSize(int $count, int $nodeCount): array
             'label' => '',
             'dashed' => false,
             'bidir' => false,
+            'order' => null,
         ])
         ->all();
+}
+
+/**
+ * Uma aresta legítima entre `n1` e `n2`, com o número que o teste quiser.
+ *
+ * @return array<string, mixed>
+ */
+function edgeNumbered(string $id, mixed $order): array
+{
+    return ['id' => $id, 'from' => 'n1', 'to' => 'n2', 'kind' => 'query', 'label' => '', 'dashed' => false, 'bidir' => false, 'order' => $order];
 }
 
 test('rejects_unknown_component_type', function () {
@@ -248,4 +259,78 @@ test('the_checklist_accepts_the_ids_of_the_catalog', function () {
         ->assertOk();
 
     expect(array_keys(autosaveTarget()->checks))->toEqualCanonicalizing($items->all());
+});
+
+test('rejects_an_order_outside_the_allowed_range', function (mixed $order, string $fragment) {
+    $response = autosave(['edges' => [edgeNumbered('e1', $order)]])
+        ->assertStatus(422)
+        ->assertJsonValidationErrors('edges.0.order');
+
+    expect($response->json('errors')['edges.0.order'][0])->toContain($fragment);
+})->with([
+    'zero' => [0, 'começa em 1'],
+    'negativo' => [-3, 'começa em 1'],
+    'acima do teto' => [401, '400'],
+    'fracionário' => [2.5, 'número inteiro'],
+    'texto' => ['primeiro', 'número inteiro'],
+    'lista' => [[1], 'número inteiro'],
+]);
+
+test('rejects_two_edges_with_the_same_order', function () {
+    $response = autosave(['edges' => [
+        edgeNumbered('e1', 3),
+        edgeNumbered('e2', 7),
+        edgeNumbered('e3', 3),
+    ]])->assertStatus(422);
+
+    expect(array_keys($response->json('errors')))->toEqualCanonicalizing(['edges.0.order', 'edges.2.order'])
+        ->and($response->json('errors')['edges.0.order'][0])->toBe('Duas ligações não podem ter o mesmo número de ordem.')
+        ->and($response->json('errors')['edges.2.order'][0])->toBe('Duas ligações não podem ter o mesmo número de ordem.');
+});
+
+test('accepts_an_order_inside_the_allowed_range', function (mixed $order) {
+    autosave(['edges' => [edgeNumbered('e1', $order)]])->assertOk();
+
+    expect(autosaveTarget()->edges[0]['order'])->toBe($order);
+})->with([
+    'sem número' => [null],
+    'primeiro' => [1],
+    'no meio' => [200],
+    'no teto' => [400],
+]);
+
+/**
+ * Densidade é responsabilidade do cliente: o servidor grava o que chega.
+ */
+test('accepts_a_sparse_order_and_writes_it_as_it_arrives', function () {
+    autosave(['edges' => [
+        edgeNumbered('e1', 1),
+        edgeNumbered('e2', 3),
+        edgeNumbered('e3', 7),
+    ]])->assertOk();
+
+    expect(array_column(autosaveTarget()->edges, 'order'))->toBe([1, 3, 7]);
+});
+
+test('accepts_an_edge_that_never_mentions_the_order', function () {
+    autosave(['edges' => [['id' => 'e1', 'from' => 'n1', 'to' => 'n2', 'kind' => 'query', 'label' => '', 'dashed' => false, 'bidir' => false]]])
+        ->assertOk();
+
+    expect(autosaveTarget()->edges[0])->not->toHaveKey('order');
+});
+
+test('rejects_a_non_boolean_show_connection_order', function () {
+    autosave(['show_connection_order' => 'talvez'])
+        ->assertStatus(422)
+        ->assertJsonValidationErrors('show_connection_order');
+});
+
+/**
+ * O contrato revogado não volta pela porta dos fundos: uma chave que a
+ * FormRequest não conhece é descartada, nunca gravada.
+ */
+test('an_unknown_root_key_is_dropped_instead_of_persisted', function () {
+    autosave(['modo_de_numeracao' => 'telepatia'])->assertOk();
+
+    expect(array_keys(autosaveTarget()->getAttributes()))->not->toContain('modo_de_numeracao');
 });

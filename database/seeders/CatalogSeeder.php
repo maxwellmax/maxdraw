@@ -19,7 +19,6 @@ class CatalogSeeder extends Seeder
         $this->call([
             ProblemLevelSeeder::class,
             ProblemItemTypeSeeder::class,
-            SequenceModeSeeder::class,
             SessionDurationSeeder::class,
             EstimateModeSeeder::class,
             LinkTypeSeeder::class,

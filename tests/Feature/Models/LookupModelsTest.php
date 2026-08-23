@@ -8,7 +8,6 @@ use App\Models\Problem;
 use App\Models\ProblemItem;
 use App\Models\ProblemItemType;
 use App\Models\ProblemLevel;
-use App\Models\SequenceMode;
 use App\Models\SessionDuration;
 use App\Models\TrainingSession;
 
@@ -47,7 +46,6 @@ test('lookup_models_cast_their_columns', function (string $model, array $casts) 
     'problem_item_types' => [ProblemItemType::class, ['is_active' => 'boolean']],
     'component_categories' => [ComponentCategory::class, ['position' => 'integer', 'is_active' => 'boolean']],
     'link_types' => [LinkType::class, ['position' => 'integer', 'is_active' => 'boolean', 'is_bidirectional_default' => 'boolean']],
-    'sequence_modes' => [SequenceMode::class, ['position' => 'integer', 'is_active' => 'boolean']],
     'session_durations' => [SessionDuration::class, ['minutes' => 'integer', 'position' => 'integer', 'is_default' => 'boolean', 'is_active' => 'boolean']],
     'estimate_modes' => [EstimateMode::class, ['position' => 'integer', 'is_active' => 'boolean']],
 ]);
@@ -62,7 +60,6 @@ test('lookup_models_are_read_by_position', function (string $model) {
     'problem_levels' => [ProblemLevel::class],
     'component_categories' => [ComponentCategory::class],
     'link_types' => [LinkType::class],
-    'sequence_modes' => [SequenceMode::class],
     'session_durations' => [SessionDuration::class],
     'estimate_modes' => [EstimateMode::class],
 ]);
@@ -92,14 +89,12 @@ test('component_category_has_many_components', function () {
     expect($category->fresh()->components)->toHaveCount(2);
 });
 
-test('session_duration_and_sequence_mode_have_many_training_sessions', function () {
+test('session_duration_has_many_training_sessions', function () {
     $duration = SessionDuration::factory()->default()->create();
-    $mode = SequenceMode::factory()->create(['slug' => 'out']);
 
     TrainingSession::factory()->count(2)->create();
 
-    expect($duration->trainingSessions)->toHaveCount(2)
-        ->and($mode->trainingSessions)->toHaveCount(2);
+    expect($duration->trainingSessions)->toHaveCount(2);
 });
 
 test('lookup_models_reject_writes_at_runtime', function (string $model) {

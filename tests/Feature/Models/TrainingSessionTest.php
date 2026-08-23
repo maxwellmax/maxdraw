@@ -1,7 +1,6 @@
 <?php
 
 use App\Models\Problem;
-use App\Models\SequenceMode;
 use App\Models\SessionDuration;
 use App\Models\TrainingSession;
 use App\Models\User;
@@ -77,12 +76,31 @@ test('training_session_belongs_to_its_lookups_and_optional_problem', function ()
 
     expect($session->problem)->toBeNull()
         ->and($session->sessionDuration)->toBeInstanceOf(SessionDuration::class)
-        ->and($session->sequenceMode)->toBeInstanceOf(SequenceMode::class)
-        ->and($session->sequenceMode->slug)->toBe('out');
+        ->and(method_exists(TrainingSession::class, 'sequenceMode'))->toBeFalse();
 
     $withProblem = TrainingSession::factory()->withProblem()->create();
 
     expect($withProblem->problem)->toBeInstanceOf(Problem::class);
+});
+
+/**
+ * Sem o cast a coluna volta do SQLite como `1`/`0`, e a comparação estrita que
+ * o cliente faz sobre `show_connection_order` deixa de valer.
+ */
+test('show_connection_order_is_cast_to_a_boolean', function (bool $value) {
+    $session = TrainingSession::factory()->create(['show_connection_order' => $value]);
+
+    $fresh = TrainingSession::query()->findOrFail($session->id);
+
+    expect($fresh->show_connection_order)->toBeBool()->toBe($value)
+        ->and($fresh->show_connection_order === $value)->toBeTrue();
+})->with([
+    'ligada' => [true],
+    'desligada' => [false],
+]);
+
+test('a_session_is_born_with_the_connection_order_visible', function () {
+    expect(TrainingSession::factory()->create()->show_connection_order)->toBeTrue();
 });
 
 test('no_model_uses_soft_deletes', function () {

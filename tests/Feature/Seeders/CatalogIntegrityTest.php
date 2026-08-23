@@ -15,7 +15,6 @@ test('catalog_seed_produces_expected_counts', function () {
         'problem_item_types' => 3,
         'component_categories' => 6,
         'link_types' => 9,
-        'sequence_modes' => 3,
         'session_durations' => 3,
         'estimate_modes' => 2,
         'problems' => 14,

@@ -1,7 +1,6 @@
 <?php
 
 use App\Models\ChecklistItem;
-use App\Models\SequenceMode;
 use App\Models\SessionDuration;
 use App\Models\TrainingSession;
 use App\Models\User;
@@ -56,34 +55,61 @@ test('update_persists_all_columns_in_one_transaction', function () {
         ->and($session->elapsed_seconds)->toBe(742)
         ->and($session->duration_minutes)->toBe(60)
         ->and($session->session_duration_id)->toBe(SessionDuration::query()->where('minutes', 60)->value('id'))
-        ->and($session->sequenceMode->slug)->toBe('flow')
-        ->and($session->sequence_mode_id)->toBe(SequenceMode::query()->where('slug', 'flow')->value('id'));
+        ->and($session->show_connection_order)->toBeTrue()
+        ->and($session->edges[0]['order'])->toBe(1);
 });
 
-test('update_normalizes_invalid_seq_mode_to_out', function (mixed $seqMode) {
+test('update_persists_the_visibility_of_the_connection_order', function (bool $value) {
     $user = User::factory()->create();
     $session = ownedSession($user);
 
-    $session->update(['sequence_mode_id' => SequenceMode::query()->where('slug', 'flow')->value('id')]);
-
-    $body = autosaveBody();
-
-    if (is_null($seqMode)) {
-        unset($body['seq_mode']);
-    } else {
-        $body['seq_mode'] = $seqMode;
-    }
-
     $this->actingAs($user)
-        ->putJson(route('sessions.update', $session), $body)
+        ->putJson(route('sessions.update', $session), autosaveBody(['show_connection_order' => $value]))
         ->assertOk();
 
-    expect($session->fresh()->sequenceMode->slug)->toBe('out');
+    expect($session->fresh()->show_connection_order)->toBe($value);
 })->with([
-    'ausente' => [null],
-    'inexistente no catálogo' => ['telepatia'],
-    'string vazia' => [''],
-    'número' => [7],
+    'ligada' => [true],
+    'desligada' => [false],
+]);
+
+/**
+ * O `order` sai do cliente e volta do servidor sem ninguém redensificar no
+ * meio: o payload esparso é gravado como veio (RF-05).
+ */
+test('the_autosave_round_trips_the_order_of_every_edge', function (array $orders) {
+    $user = User::factory()->create();
+    $session = ownedSession($user);
+
+    $edges = collect($orders)
+        ->map(fn (?int $order, int $index): array => [
+            'id' => 'e'.$index,
+            'from' => 'n'.($index % 2 + 1),
+            'to' => 'n'.(($index + 1) % 2 + 1),
+            'kind' => 'query',
+            'label' => '',
+            'dashed' => false,
+            'bidir' => false,
+            'order' => $order,
+        ])
+        ->all();
+
+    $this->actingAs($user)
+        ->putJson(route('sessions.update', $session), autosaveBody(['edges' => $edges]))
+        ->assertOk();
+
+    expect(array_column($session->fresh()->edges, 'order'))->toBe($orders);
+
+    $this->actingAs($user)
+        ->getJson(route('sessions.show', $session))
+        ->assertOk()
+        ->assertJsonPath('data.edges', $edges);
+})->with([
+    'densa' => [[1, 2, 3]],
+    'esparsa' => [[1, 3, 7]],
+    'sem numeração' => [[null, null, null]],
+    'parcial' => [[2, null, 1]],
+    'no teto' => [[400, 399]],
 ]);
 
 test('update_rejects_unknown_checklist_item_key', function (mixed $key) {

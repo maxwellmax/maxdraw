@@ -5,7 +5,6 @@ namespace Database\Factories;
 use App\Models\Component;
 use App\Models\LinkType;
 use App\Models\Problem;
-use App\Models\SequenceMode;
 use App\Models\SessionDuration;
 use App\Models\TrainingSession;
 use App\Models\User;
@@ -22,7 +21,7 @@ class TrainingSessionFactory extends Factory
      * Define the model's default state.
      *
      * A sessão nova nasce vazia (US-11.2): sem blocos, sem marcações, sem notas,
-     * tempo zerado, duração 45 e modo de numeração `out`.
+     * tempo zerado, duração 45 e a numeração das conexões visível.
      *
      * @return array<string, mixed>
      */
@@ -32,7 +31,7 @@ class TrainingSessionFactory extends Factory
             'user_id' => User::factory(),
             'problem_id' => null,
             'session_duration_id' => fn (): int => $this->defaultSessionDurationId(),
-            'sequence_mode_id' => fn (): int => $this->defaultSequenceModeId(),
+            'show_connection_order' => true,
             'elapsed_seconds' => 0,
             'notes' => null,
             'nodes' => [],
@@ -89,15 +88,6 @@ class TrainingSessionFactory extends Factory
             : (int) $id;
     }
 
-    private function defaultSequenceModeId(): int
-    {
-        $id = SequenceMode::query()->where('slug', SequenceMode::DEFAULT_SLUG)->value('id');
-
-        return is_null($id)
-            ? SequenceMode::factory()->create(['slug' => SequenceMode::DEFAULT_SLUG])->id
-            : (int) $id;
-    }
-
     /**
      * @return array<int, array<string, mixed>>
      */
@@ -117,7 +107,7 @@ class TrainingSessionFactory extends Factory
     }
 
     /**
-     * A ordem do array `edges` é a ordem de saída (US-4.4) — nada de coluna de ordem.
+     * A aresta nasce sem número: quem numera é o usuário, no cliente (RF-14a).
      *
      * @return array<int, array<string, mixed>>
      */
@@ -134,6 +124,7 @@ class TrainingSessionFactory extends Factory
                 'label' => '',
                 'dashed' => false,
                 'bidir' => false,
+                'order' => null,
             ])
             ->all();
     }
