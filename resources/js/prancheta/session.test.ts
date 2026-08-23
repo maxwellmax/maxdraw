@@ -27,6 +27,7 @@ function boot(): { store: SessionStore; engine: CanvasEngine } {
 const PERSISTED_CHANGES: Array<
     [string, (store: SessionStore, engine: CanvasEngine) => void]
 > = [
+    ['problema escolhido', (store) => store.setProblemId(7)],
     ['nós', (_store, engine) => void engine.addNode('api')],
     [
         'rótulo do bloco',
@@ -84,6 +85,7 @@ describe('SessionStore', () => {
             'estimate',
             'nodes',
             'notes',
+            'problem_id',
             'seq_mode',
         ]);
     });
@@ -145,11 +147,27 @@ describe('SessionStore', () => {
         expect(store.elapsedSeconds).toBe(742);
         expect(store.durationMinutes).toBe(60);
     });
+
+    it('grava o problema escolhido na sessão corrente', () => {
+        const { store } = boot();
+
+        expect(store.problemId).toBeNull();
+
+        store.setProblemId(7);
+
+        expect(store.problemId).toBe(7);
+        expect(store.body().problem_id).toBe(7);
+
+        store.setProblemId(null);
+
+        expect(store.body().problem_id).toBeNull();
+    });
 });
 
 describe('bodyFrom / recordFrom', () => {
     it('traduz os nomes do servidor nos dois sentidos', () => {
         const record = sessionRecordFixture({
+            problemId: 4,
             nodes: [nodeFixture('n1')],
             notes: 'notas',
             elapsedSeconds: 90,
@@ -158,6 +176,7 @@ describe('bodyFrom / recordFrom', () => {
         });
 
         expect(bodyFrom(record)).toMatchObject({
+            problem_id: 4,
             elapsed_seconds: 90,
             duration_minutes: 30,
             seq_mode: 'flow',

@@ -1,7 +1,15 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3';
 import type { ComponentPublicInstance } from 'vue';
-import { computed, nextTick, reactive, ref, watch } from 'vue';
+import {
+    computed,
+    nextTick,
+    onBeforeUnmount,
+    onMounted,
+    reactive,
+    ref,
+    watch,
+} from 'vue';
 import { CanvasEngine } from '@/canvas/engine';
 import { ptAt } from '@/canvas/geometry';
 import type { EdgeFlag, RefusalReason } from '@/canvas/types';
@@ -21,6 +29,8 @@ import NarrowNotice from '@/components/prancheta/NarrowNotice.vue';
 import NotesPad from '@/components/prancheta/NotesPad.vue';
 import PhaseAccordion from '@/components/prancheta/PhaseAccordion.vue';
 import PranchetaButton from '@/components/prancheta/PranchetaButton.vue';
+import ProblemBrief from '@/components/prancheta/ProblemBrief.vue';
+import ProblemPicker from '@/components/prancheta/ProblemPicker.vue';
 import StageCanvas from '@/components/prancheta/StageCanvas.vue';
 import ToastHost from '@/components/prancheta/ToastHost.vue';
 import { createSessionStore, useAutosave } from '@/composables/useAutosave';
@@ -35,6 +45,11 @@ import {
     durationsFrom,
     phaseSegments,
 } from '@/prancheta/clock';
+import {
+    opensPickerOnLoad,
+    PICKER_DELAY_MS,
+    problemOf,
+} from '@/prancheta/problems';
 import type { PhaseChoice } from '@/prancheta/roteiro';
 import { FOLLOW_CURRENT, phaseRows, toggleChoice } from '@/prancheta/roteiro';
 import type { SessionStore } from '@/prancheta/session';
@@ -84,6 +99,38 @@ const activeTab = ref<DrillTabId>(DEFAULT_DRILL_TAB);
 const phaseChoice = ref<PhaseChoice>(FOLLOW_CURRENT);
 
 const openSheet = ref<'problem' | 'sessions' | null>(null);
+
+/**
+ * O enunciado da sessão. Nenhum texto de problema mora na página: o que a
+ * sessão guarda é o id, e o catálogo entrega o resto (US-2.1).
+ */
+const problem = computed(() =>
+    problemOf(props.catalog.problems, store.problemId),
+);
+
+/**
+ * Sessão que ainda não começou — sem problema e sem blocos — abre o seletor
+ * sozinha, com o atraso do protótipo. Quem fecha sem escolher continua na
+ * prancheta livre.
+ */
+let pickerTimer: ReturnType<typeof setTimeout> | null = null;
+
+onMounted(() => {
+    if (!opensPickerOnLoad(store.problemId, store.nodes.length)) {
+        return;
+    }
+
+    pickerTimer = setTimeout(
+        () => (openSheet.value = 'problem'),
+        PICKER_DELAY_MS,
+    );
+});
+
+onBeforeUnmount(() => {
+    if (pickerTimer) {
+        clearTimeout(pickerTimer);
+    }
+});
 
 const stage = ref<InstanceType<typeof StageCanvas> | null>(null);
 const stageElement = computed(() => stage.value?.el ?? null);
@@ -240,8 +287,14 @@ const sheetTitle = computed(() =>
 const sheetDescription = computed(() =>
     openSheet.value === 'sessions'
         ? 'Abra uma sessão salva para restaurar o treino de onde parou.'
-        : 'Cada um vem com enunciado, requisitos e a escala alvo. O cronômetro zera.',
+        : 'Cada um vem com enunciado, requisitos e a escala alvo. O treino corrente continua de onde está.',
 );
+
+/** Escolher o problema grava-o na sessão corrente e fecha a folha (US-2.1). */
+function pickProblem(problemId: number | null): void {
+    store.setProblemId(problemId);
+    openSheet.value = null;
+}
 
 function pickPhase(index: number): void {
     phaseChoice.value = toggleChoice(
@@ -343,6 +396,7 @@ function placeNode(slug: string): void {
             <BoardTopBar
                 :save-state="autosave.chip"
                 :save-label="autosave.label ?? undefined"
+                :problem-name="problem?.name ?? null"
                 @pick-problem="openSheet = 'problem'"
                 @open-sessions="openSheet = 'sessions'"
                 @toggle-theme="toggleTheme"
@@ -477,6 +531,10 @@ function placeNode(slug: string): void {
                     />
                 </template>
 
+                <template #enunciado>
+                    <ProblemBrief :problem="problem" />
+                </template>
+
                 <template #clock>
                     <DrillClock
                         :elapsed-seconds="store.elapsedSeconds"
@@ -511,13 +569,30 @@ function placeNode(slug: string): void {
                 </PranchetaButton>
             </template>
 
-            <p class="m-0 p-2 text-[12.5px] text-sd-ink-3">
-                {{
-                    openSheet === 'sessions'
-                        ? 'Nenhuma sessão carregada nesta prancheta.'
-                        : 'Nenhum problema carregado nesta prancheta.'
-                }}
+            <ProblemPicker
+                v-if="openSheet === 'problem'"
+                :problems="catalog.problems"
+                :current="store.problemId"
+                @pick="pickProblem"
+            />
+
+            <p v-else class="m-0 p-2 text-[12.5px] text-sd-ink-3">
+                Nenhuma sessão carregada nesta prancheta.
             </p>
+
+            <template v-if="openSheet === 'problem'" #footer>
+                <span class="flex-1 text-[11.5px] text-sd-ink-3">
+                    Fechar sem escolher mantém a prancheta livre — desenhar não
+                    depende de um enunciado.
+                </span>
+
+                <PranchetaButton
+                    data-testid="free-board"
+                    @click="pickProblem(null)"
+                >
+                    Prancheta livre
+                </PranchetaButton>
+            </template>
         </ModalSheet>
 
         <ToastHost />

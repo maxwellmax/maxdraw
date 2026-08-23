@@ -73,6 +73,7 @@ class TrainingSessionUpdateRequest extends FormRequest
             ->all();
 
         return [
+            'problem_id' => ['sometimes', 'nullable', 'integer', Rule::exists('problems', 'id')],
             'notes' => ['sometimes', 'nullable', 'string', 'max:'.self::MAX_NOTES],
             'elapsed_seconds' => ['sometimes', 'integer', 'min:0'],
             'duration_minutes' => ['sometimes', 'integer', Rule::in(SessionDuration::query()->pluck('minutes')->all())],
@@ -123,6 +124,7 @@ class TrainingSessionUpdateRequest extends FormRequest
             'edges.*.from.in' => 'A ligação precisa sair de um bloco do próprio diagrama.',
             'edges.*.to.in' => 'A ligação precisa chegar a um bloco do próprio diagrama.',
             'duration_minutes.in' => 'A duração do treino é de 30, 45 ou 60 minutos.',
+            'problem_id.exists' => 'Este problema não existe no catálogo.',
             'estimate.mode.in' => 'Este modo de estimativa não existe no catálogo.',
         ];
     }

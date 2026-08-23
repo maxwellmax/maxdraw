@@ -27,3 +27,10 @@ A gravação periódica (`CLOCK_PERSIST_MS`, 20 s) é `autosave.saveLocal()`, n�
 Qual fase está aberta é preferência de tela, não payload: o `Board.vue` guarda `phaseChoice` (`FOLLOW_CURRENT` = segue o relógio, `ALL_COLLAPSED` = nenhuma) e um `watch(phaseIndex)` a zera na virada — a escolha manual prevalece só até a próxima fase começar.
 
 Notas: `NOTES_MAX_LENGTH` (notes.ts) espelha o `MAX_NOTES` privado da FormRequest e `DrillRoteiroTest` compara os dois. O `NotesPad` não usa `maxlength`: `acceptNotes()` devolve `blocked` para o Board avisar por toast — cortar em silêncio é o que a US-6.3 proíbe.
+
+## Problema escolhido é campo do payload, não sessão nova
+O protótipo cria uma sessão nova ao escolher um problema; aqui `problem_id` entra no `SessionBody` (prancheta/session.ts) e sobe pelo mesmo autosave — `store.setProblemId()` suja a sessão como qualquer outro campo, e o `PUT /api/sessions/{id}` o aceita (`TrainingSessionUpdateRequest` + `SessionStateWriter`). A US-2.1 pede "gravado na sessão corrente"; sessão nova é a Phase 19.
+
+Consequências: rascunho local antigo sem a chave cai em `problem_id ?? null` no `recordFrom`/`bodyFromPayload`; a `Board.vue` fala só `problemId` em camelCase porque `CanvasNavigationTest` proíbe a string `problem_id` na página.
+
+O gabarito (`details` em ProblemBrief.vue) não tem estado persistido de propósito: `:key="problem.id"` e a ausência de `open` são o que devolvem o bloco ao colapsado a cada carregamento e a cada troca de enunciado (US-10.1). `NoDiagramEvaluationTest` varre rotas, respostas e `app/` por vocabulário de avaliação — nada na aplicação pode julgar o desenho.

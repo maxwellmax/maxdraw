@@ -3,6 +3,7 @@ import type { LinkType } from '@/canvas/links';
 import type { SequenceModeOption } from '@/canvas/sequence';
 import type { Edge, Node } from '@/canvas/types';
 import type { SessionDurationOption } from '@/prancheta/clock';
+import type { ProblemOption } from '@/prancheta/problems';
 import type { RoteiroPhase } from '@/prancheta/roteiro';
 
 /**
@@ -30,7 +31,7 @@ export type SessionPayload = {
  * como `unknown[]` — cada fase tipa a sua quando passa a lê-la.
  */
 export type BoardCatalog = {
-    problems: unknown[];
+    problems: ProblemOption[];
     component_categories: CatalogCategory[];
     link_types: LinkType[];
     phases: RoteiroPhase[];

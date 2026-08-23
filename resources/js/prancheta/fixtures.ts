@@ -1,4 +1,5 @@
 import type { SessionDurationOption } from './clock';
+import type { ProblemOption } from './problems';
 import type { SessionStorage } from './resume';
 import type { RoteiroPhase } from './roteiro';
 import type { SessionRecord } from './session';
@@ -12,6 +13,7 @@ export function sessionRecordFixture(
     overrides: Partial<SessionRecord> = {},
 ): SessionRecord {
     return {
+        problemId: null,
         nodes: [],
         edges: [],
         seqMode: 'out',
@@ -180,5 +182,119 @@ export function sessionDurationOptionsFixture(): SessionDurationOption[] {
         { id: 1, minutes: 30, is_default: false },
         { id: 2, minutes: 45, is_default: true },
         { id: 3, minutes: 60, is_default: false },
+    ];
+}
+
+/**
+ * Três problemas do catálogo, um por nível, com o texto literal do
+ * `ProblemSeeder`. `tests/Feature/Frontend/ProblemBriefTest.php` confere a
+ * fixture contra o seeder — o enunciado é testado contra o catálogo de
+ * verdade, gabarito incluído.
+ */
+export function problemOptionsFixture(): ProblemOption[] {
+    return [
+        {
+            id: 1,
+            slug: 'url',
+            name: 'Encurtador de URL',
+            tag: 'Chave-valor · Cache',
+            level: 'base',
+            level_name: 'Base',
+            level_position: 1,
+            context:
+                'Um serviço que recebe uma URL longa e devolve um link curto. Quem abre o link curto é redirecionado ao destino original. É o problema mais simples do gênero — e o melhor para treinar o roteiro inteiro sem se perder.',
+            requirements: [
+                'Encurtar uma URL e devolver o link curto',
+                'Alias personalizado opcional',
+                'Redirecionar o link curto para o destino',
+                'Expiração opcional do link',
+                'Contagem de cliques por link',
+            ],
+            scale: [
+                '500 milhões de links novos por mês',
+                'Leitura : escrita ≈ 100 : 1',
+                'Retenção de 5 anos',
+                'Redirecionamento p99 abaixo de 50 ms',
+                'Disponibilidade de 99,99%',
+            ],
+            topics: [
+                'Geração da chave: hash truncado com tratamento de colisão vs contador distribuído em base62',
+                'Tamanho da chave derivado do volume total, não chutado',
+                '301 permanente mata a contagem de cliques; 302 preserva',
+                'Banco chave-valor particionado pela própria chave curta',
+                'Cache dos links quentes na frente do banco (distribuição de cauda longa)',
+                'Redirect servido na borda/CDN para cortar latência',
+                'Expurgo de expirados sem varrer a tabela inteira',
+                'Rate limit por conta para conter abuso e spam',
+            ],
+        },
+        {
+            id: 2,
+            slug: 'feed',
+            name: 'Feed de rede social',
+            tag: 'Fan-out · Ranking',
+            level: 'advanced',
+            level_name: 'Avançado',
+            level_position: 3,
+            context:
+                'Uma timeline que mostra os posts das contas que o usuário segue. O clássico onde a resposta certa depende inteiramente de quem posta e de quem lê — não existe uma solução única.',
+            requirements: [
+                'Publicar um post (texto e mídia)',
+                'Seguir e deixar de seguir contas',
+                'Ver a timeline das contas seguidas',
+                'Curtir e comentar',
+                'Paginação ao rolar',
+            ],
+            scale: [
+                '200 milhões de usuários ativos por dia',
+                'Leitura : escrita ≈ 100 : 1',
+                'O usuário médio segue 300 contas',
+                'Existem contas com mais de 50 milhões de seguidores',
+                'Timeline carregada em até 200 ms',
+            ],
+            topics: [
+                'Fan-out na escrita (empurra) vs fan-out na leitura (puxa) — custo de cada um',
+                'Híbrido: empurrar para o usuário comum, puxar para celebridades',
+                'Timeline materializada em cache, com um teto de itens por usuário',
+                'Post store separado do feed store',
+                'Paginação por cursor, nunca por offset',
+                'Ordenação cronológica vs ranqueada e o que isso quebra',
+                'Invalidação quando alguém deleta um post ou deixa de seguir',
+                'Mídia servida por CDN, nunca pelo serviço de feed',
+            ],
+        },
+        {
+            id: 3,
+            slug: 'drive',
+            name: 'Armazenamento de arquivos',
+            tag: 'Sincronização · Blocos',
+            level: 'intermediate',
+            level_name: 'Intermediário',
+            level_position: 2,
+            context:
+                'Guardar arquivos na nuvem e mantê-los sincronizados entre vários dispositivos do mesmo usuário. O problema bonito aqui é enviar o mínimo possível de bytes e resolver conflito de edição.',
+            requirements: [
+                'Enviar e baixar arquivos',
+                'Sincronizar entre dispositivos',
+                'Compartilhar com outras pessoas',
+                'Histórico de versões',
+                'Trabalhar offline e sincronizar depois',
+            ],
+            scale: [
+                '100 milhões de usuários, 50 GB por usuário',
+                'Arquivo médio de 1 MB, com arquivos de até 50 GB',
+                'Alteração propagada em menos de 10 s',
+            ],
+            topics: [
+                'Arquivo dividido em blocos com hash — só o bloco alterado sobe',
+                'Deduplicação por hash de bloco entre usuários',
+                'Metadados (árvore de pastas, versões) em banco separado dos blocos',
+                'Serviço de notificação para avisar os outros dispositivos',
+                'Resolução de conflito: última escrita vence vs manter as duas versões',
+                'Upload retomável para arquivos grandes',
+                'Permissões de compartilhamento herdadas na árvore',
+                'Cliente mantém um journal local para trabalhar offline',
+            ],
+        },
     ];
 }

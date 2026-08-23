@@ -27,6 +27,7 @@ export type SessionChecks = Record<string, boolean>;
  * duração (US-8.1).
  */
 export type SessionRecord = SessionState & {
+    problemId: number | null;
     checks: SessionChecks;
     notes: string;
     estimate: SessionEstimate;
@@ -39,6 +40,7 @@ export type SessionRecord = SessionState & {
  * lugar do frontend que conhece esse formato: nenhum componente monta payload.
  */
 export type SessionBody = {
+    problem_id: number | null;
     nodes: Node[];
     edges: Edge[];
     checks: SessionChecks;
@@ -51,6 +53,7 @@ export type SessionBody = {
 
 export function bodyFrom(state: SessionRecord): SessionBody {
     return {
+        problem_id: state.problemId,
         nodes: state.nodes,
         edges: state.edges,
         checks: state.checks,
@@ -69,6 +72,7 @@ export function bodyFrom(state: SessionRecord): SessionBody {
  */
 export function bodyFromPayload(payload: SessionPayload): SessionBody {
     return {
+        problem_id: payload.problem_id ?? null,
         nodes: (payload.nodes ?? []).map((node) => ({ ...node })),
         edges: (payload.edges ?? []).map((edge) => ({ ...edge })),
         checks: { ...(payload.checks ?? {}) },
@@ -105,6 +109,7 @@ function numberOf(value: string | number | null | undefined): number {
 
 export function recordFrom(body: SessionBody): SessionRecord {
     return {
+        problemId: body.problem_id ?? null,
         nodes: body.nodes.map((node) => ({ ...node })),
         edges: body.edges.map((edge) => ({ ...edge })),
         seqMode: body.seq_mode,
@@ -145,6 +150,10 @@ export class SessionStore {
         this.state = state;
         this.serverUpdatedAt = serverUpdatedAt;
         this.savedSignature = JSON.stringify(savedBody ?? bodyFrom(state));
+    }
+
+    get problemId(): number | null {
+        return this.state.problemId;
     }
 
     get nodes(): Node[] {
@@ -191,6 +200,14 @@ export class SessionStore {
         return this.signature !== this.savedSignature;
     }
 
+    /**
+     * Escolher o problema é gravação de sessão como qualquer outra: suja o
+     * payload e sobe pelo mesmo autosave (US-2.1).
+     */
+    setProblemId(problemId: number | null): void {
+        this.state.problemId = problemId;
+    }
+
     setNotes(notes: string): void {
         this.state.notes = notes;
     }
@@ -223,6 +240,7 @@ export class SessionStore {
     restore(body: SessionBody): void {
         const record = recordFrom(body);
 
+        this.state.problemId = record.problemId;
         this.state.nodes = record.nodes;
         this.state.edges = record.edges;
         this.state.seqMode = record.seqMode;
