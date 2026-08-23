@@ -433,6 +433,39 @@ describe('ordem explícita', () => {
         expect(engine.orderOf(engine.edges[3])).toBeNull();
     });
 
+    it('autoNumberOrder_stacks_a_single_undo_step', () => {
+        const engine = engineWith(
+            stateFixture(
+                [
+                    nodeFixture('a', 0, 0, 'browser'),
+                    nodeFixture('b', 400, 0, 'api'),
+                    nodeFixture('c', 800, 0, 'sql'),
+                    nodeFixture('d', 1200, 0, 'worker'),
+                ],
+                [
+                    edgeFixture('e1', 'a', 'b', 3),
+                    edgeFixture('e2', 'b', 'c'),
+                    edgeFixture('e3', 'a', 'c', 1),
+                    edgeFixture('e4', 'c', 'd'),
+                ],
+            ),
+        );
+        const before = orderMap(engine);
+
+        expect(engine.autoNumberOrder()).toBe(true);
+        expect(engine.undoDepth).toBe(1);
+        expect(orderMap(engine)).toEqual({ e1: 1, e2: 3, e3: 2, e4: 4 });
+
+        engine.undo();
+
+        expect(orderMap(engine)).toEqual(before);
+        expect(engine.undoDepth).toBe(0);
+
+        expect(engine.autoNumberOrder()).toBe(true);
+        expect(engine.autoNumberOrder()).toBe(false);
+        expect(engine.undoDepth).toBe(1);
+    });
+
     it('não empilha desfazer quando a ordem não muda', () => {
         const engine = numbered();
 

@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { edgeFixture } from './fixtures';
-import { clearOrder, densify, numberedCount, setOrder } from './order';
-import type { Edge } from './types';
+import { indexComponents } from './catalog';
+import { catalogFixture, edgeFixture, nodeFixture } from './fixtures';
+import { MAX_EDGES, MAX_NODES } from './limits';
+import {
+    autoNumber,
+    clearOrder,
+    densify,
+    numberedCount,
+    setOrder,
+} from './order';
+import type { Edge, Node } from './types';
 
 /** Três arestas numeradas na sequência, na ordem `A=1, B=2, C=3`. */
 function sequence(): Edge[] {
@@ -174,5 +182,257 @@ describe('invariante', () => {
         }
 
         expect(new Set(numbers(edges)).size).toBe(numberedCount(edges));
+    });
+});
+
+describe('autoNumber', () => {
+    const index = indexComponents(catalogFixture());
+
+    /** Um diagrama com cliente, leque, ciclo e uma órfã — o caso de sempre. */
+    function tangled(): { nodes: Node[]; edges: Edge[] } {
+        return {
+            nodes: [
+                nodeFixture('api', 400, 0, 'api'),
+                nodeFixture('cdn', 200, 0, 'cdn'),
+                nodeFixture('cli', 0, 0, 'browser'),
+                nodeFixture('sql', 800, 0, 'sql'),
+                nodeFixture('mq', 800, 200, 'dlq'),
+                nodeFixture('wrk', 1200, 200, 'worker'),
+            ],
+            edges: [
+                edgeFixture('a', 'api', 'sql', 4),
+                edgeFixture('b', 'cli', 'cdn'),
+                edgeFixture('c', 'cdn', 'api', 1),
+                edgeFixture('d', 'api', 'mq'),
+                edgeFixture('e', 'mq', 'wrk', 9),
+                edgeFixture('f', 'wrk', 'api'),
+                edgeFixture('g', 'sumiu', 'api', 2),
+            ],
+        };
+    }
+
+    /** O diagrama no limite de payload: 200 blocos e 400 ligações, sem laço. */
+    function payloadLimit(): { nodes: Node[]; edges: Edge[] } {
+        const nodes = Array.from({ length: MAX_NODES }, (_, position) =>
+            nodeFixture(
+                `n${position}`,
+                (position % 20) * 200,
+                Math.floor(position / 20) * 140,
+                position === 0 ? 'browser' : 'api',
+            ),
+        );
+
+        const edges = Array.from({ length: MAX_EDGES }, (_, position) =>
+            edgeFixture(
+                `e${position}`,
+                `n${position % MAX_NODES}`,
+                `n${(position * 7 + 13) % MAX_NODES}`,
+                position % 3 === 0 ? null : MAX_EDGES - position,
+            ),
+        );
+
+        return { nodes, edges };
+    }
+
+    it('autoNumber_numbers_every_live_edge_exactly_once', () => {
+        const nodes = [
+            nodeFixture('a', 0, 0, 'browser'),
+            nodeFixture('b', 400, 0, 'api'),
+            nodeFixture('c', 800, 0, 'sql'),
+        ];
+        const edges = [
+            edgeFixture('e1', 'a', 'b', 9),
+            edgeFixture('e2', 'b', 'c'),
+            edgeFixture('e3', 'a', 'c', 3),
+        ];
+
+        expect(autoNumber(edges, nodes, index)).toBe(true);
+        expect(orders(edges)).toEqual({ e1: 1, e3: 2, e2: 3 });
+        expect(numberedCount(edges)).toBe(3);
+        expect(isDense(edges)).toBe(true);
+        expect(autoNumber(edges, nodes, index)).toBe(false);
+    });
+
+    it('autoNumber_starts_from_client_nodes_without_inputs', () => {
+        const nodes = [
+            nodeFixture('d', 0, 200, 'cdn'),
+            nodeFixture('a', 400, 0, 'api'),
+            nodeFixture('cli', 0, 0, 'browser'),
+            nodeFixture('b', 800, 0, 'api'),
+            nodeFixture('c', 1200, 0, 'sql'),
+        ];
+        const edges = [
+            edgeFixture('e0', 'd', 'c'),
+            edgeFixture('e1', 'a', 'b'),
+            edgeFixture('e2', 'cli', 'a'),
+            edgeFixture('e3', 'b', 'c'),
+        ];
+
+        autoNumber(edges, nodes, index);
+
+        expect(orders(edges)).toEqual({ e2: 1, e1: 2, e3: 3, e0: 4 });
+    });
+
+    it('autoNumber_walks_breadth_first_from_each_root', () => {
+        const nodes = [
+            nodeFixture('r', 0, 0, 'browser'),
+            nodeFixture('x', 400, 0, 'api'),
+            nodeFixture('y', 400, 200, 'api'),
+            nodeFixture('x2', 800, 0, 'sql'),
+            nodeFixture('y2', 800, 200, 'sql'),
+        ];
+        const edges = [
+            edgeFixture('rx', 'r', 'x'),
+            edgeFixture('ry', 'r', 'y'),
+            edgeFixture('xx', 'x', 'x2'),
+            edgeFixture('yy', 'y', 'y2'),
+        ];
+
+        autoNumber(edges, nodes, index);
+
+        expect(orders(edges)).toEqual({ rx: 1, ry: 2, xx: 3, yy: 4 });
+    });
+
+    it('autoNumber_terminates_on_cyclic_graphs', () => {
+        const nodes = [
+            nodeFixture('a', 0, 0, 'api'),
+            nodeFixture('b', 400, 0, 'api'),
+            nodeFixture('c', 800, 0, 'api'),
+        ];
+        const edges = [
+            edgeFixture('e1', 'a', 'b'),
+            edgeFixture('e2', 'b', 'c'),
+            edgeFixture('e3', 'c', 'a'),
+        ];
+
+        autoNumber(edges, nodes, index);
+
+        expect(orders(edges)).toEqual({ e1: 1, e2: 2, e3: 3 });
+        expect(isDense(edges)).toBe(true);
+    });
+
+    it('autoNumber_gives_a_bidir_edge_a_single_order_and_keeps_its_source_as_root', () => {
+        const nodes = [
+            nodeFixture('srv', 400, 0, 'api'),
+            nodeFixture('db', 800, 0, 'sql'),
+            nodeFixture('ws', 0, 0, 'browser'),
+        ];
+        const edges = [
+            edgeFixture('e2', 'srv', 'db'),
+            { ...edgeFixture('e1', 'ws', 'srv'), bidir: true },
+        ];
+
+        autoNumber(edges, nodes, index);
+
+        expect(orders(edges)).toEqual({ e1: 1, e2: 2 });
+        expect(numberedCount(edges)).toBe(2);
+    });
+
+    it('autoNumber_ranks_a_numbered_orphan_after_every_live_edge', () => {
+        const nodes = [
+            nodeFixture('a', 0, 0, 'browser'),
+            nodeFixture('b', 400, 0, 'api'),
+            nodeFixture('c', 800, 0, 'sql'),
+            nodeFixture('d', 1200, 0, 'worker'),
+        ];
+        const edges = [
+            edgeFixture('e1', 'a', 'b'),
+            edgeFixture('e2', 'b', 'c'),
+            edgeFixture('e3', 'c', 'd'),
+            edgeFixture('orfa', 'sumiu', 'b', 2),
+        ];
+
+        autoNumber(edges, nodes, index);
+
+        expect(orders(edges)).toEqual({ e1: 1, e2: 2, e3: 3, orfa: 4 });
+        expect(numberedCount(edges)).toBe(4);
+        expect(isDense(edges)).toBe(true);
+    });
+
+    it('autoNumber_keeps_the_relative_order_of_numbered_orphans', () => {
+        const nodes = [
+            nodeFixture('a', 0, 0, 'browser'),
+            nodeFixture('b', 400, 0, 'api'),
+            nodeFixture('c', 800, 0, 'sql'),
+            nodeFixture('d', 1200, 0, 'worker'),
+        ];
+        const edges = [
+            edgeFixture('e1', 'a', 'b'),
+            edgeFixture('e2', 'b', 'c'),
+            edgeFixture('e3', 'c', 'd'),
+            edgeFixture('orfaA', 'sumiu', 'b', 5),
+            edgeFixture('orfaB', 'sumiu', 'c', 2),
+            edgeFixture('orfaC', 'sumiu', 'd'),
+        ];
+
+        autoNumber(edges, nodes, index);
+
+        expect(orders(edges)).toEqual({
+            e1: 1,
+            e2: 2,
+            e3: 3,
+            orfaB: 4,
+            orfaA: 5,
+            orfaC: null,
+        });
+        expect(numberedCount(edges)).toBe(5);
+        expect(isDense(edges)).toBe(true);
+    });
+
+    it('autoNumber_is_deterministic_over_50_consecutive_runs', () => {
+        const { nodes, edges } = tangled();
+
+        autoNumber(edges, nodes, index);
+
+        const baseline = JSON.stringify(orders(edges));
+        const divergences: number[] = [];
+
+        for (let run = 0; run < 50; run++) {
+            const fresh = tangled();
+
+            autoNumber(fresh.edges, fresh.nodes, index);
+            autoNumber(edges, nodes, index);
+
+            if (
+                JSON.stringify(orders(fresh.edges)) !== baseline ||
+                JSON.stringify(orders(edges)) !== baseline
+            ) {
+                divergences.push(run);
+            }
+        }
+
+        expect(divergences).toEqual([]);
+        expect(orders(edges)).toEqual({
+            b: 1,
+            c: 2,
+            a: 3,
+            d: 4,
+            e: 5,
+            f: 6,
+            g: 7,
+        });
+    });
+
+    it('autoNumber_renumbers_the_payload_limit_under_16ms', () => {
+        const { nodes, edges } = payloadLimit();
+
+        expect(nodes).toHaveLength(MAX_NODES);
+        expect(edges).toHaveLength(MAX_EDGES);
+
+        const samples = Array.from({ length: 20 }, () => {
+            const started = performance.now();
+
+            densify(edges);
+            autoNumber(edges, nodes, index);
+
+            return performance.now() - started;
+        });
+
+        const sorted = [...samples].sort((a, b) => a - b);
+        const median = (sorted[9] + sorted[10]) / 2;
+
+        expect(numberedCount(edges)).toBe(MAX_EDGES);
+        expect(isDense(edges)).toBe(true);
+        expect(median).toBeLessThan(16);
     });
 });

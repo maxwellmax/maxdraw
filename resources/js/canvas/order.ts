@@ -8,8 +8,11 @@
  * `{1, …, N}`, sem buraco e sem repetido.
  */
 
+import type { ComponentIndex } from './catalog';
+import { isClientComponent } from './catalog';
+import { liveEdges } from './edges';
 import { edgeById } from './nodes';
-import type { Edge } from './types';
+import type { Edge, Node } from './types';
 
 /** Quantas arestas estão na sequência. Aresta sem número não conta para `N`. */
 export function numberedCount(edges: readonly Edge[]): number {
@@ -87,6 +90,126 @@ export function clearOrder(edges: readonly Edge[], id: string): boolean {
     densify(edges);
 
     return true;
+}
+
+/**
+ * Numera o diagrama inteiro de uma vez: uma BFS determinística percorre as
+ * arestas vivas e as reescreve de 1 a L na ordem em que as alcança,
+ * sobrescrevendo qualquer `order` anterior — `null` inclusive (RF-10).
+ *
+ * A travessia segue somente `from → to`: `bidir` é bandeira de desenho e não
+ * conta como aresta de entrada em `from` (RF-17). Cada aresta é visitada uma
+ * única vez, o que faz um diagrama com ciclo terminar.
+ *
+ * A órfã não é visitada, porque não é desenhada e não há por onde alcançá-la:
+ * ela é ranqueada depois de todas as vivas, preservando a ordem relativa entre
+ * as órfãs numeradas, e a órfã sem número continua sem número (RF-16).
+ */
+export function autoNumber(
+    edges: readonly Edge[],
+    nodes: readonly Node[],
+    index: ComponentIndex = new Map(),
+): boolean {
+    const before = orderSignature(edges);
+    const walked = breadthFirst(edges, nodes, index);
+    const visited = new Set(walked.map((edge) => edge.id));
+
+    for (const [position, edge] of walked.entries()) {
+        edge.order = position + 1;
+    }
+
+    const trailing = edges
+        .flatMap((edge, position) =>
+            visited.has(edge.id) || edge.order === null
+                ? []
+                : [{ edge, order: edge.order, position }],
+        )
+        .sort((a, b) => a.order - b.order || a.position - b.position);
+
+    for (const [rank, { edge }] of trailing.entries()) {
+        edge.order = walked.length + rank + 1;
+    }
+
+    densify(edges);
+
+    return orderSignature(edges) !== before;
+}
+
+/**
+ * As arestas vivas na ordem da travessia. A fila é um array com índice de
+ * leitura, e a expansão de cada bloco sai do array `edges` — nenhum `Set` ou
+ * `Map` é iterado por conta própria, que é o que mantém a BFS determinística.
+ */
+function breadthFirst(
+    edges: readonly Edge[],
+    nodes: readonly Node[],
+    index: ComponentIndex,
+): Edge[] {
+    const live = liveEdges(edges, nodes);
+
+    if (live.length === 0) {
+        return [];
+    }
+
+    const outgoing = new Map<string, Edge[]>();
+    const hasInput = new Set<string>();
+
+    for (const edge of live) {
+        const siblings = outgoing.get(edge.from);
+
+        if (siblings) {
+            siblings.push(edge);
+        } else {
+            outgoing.set(edge.from, [edge]);
+        }
+
+        hasInput.add(edge.to);
+    }
+
+    const walked: Edge[] = [];
+    const seen = new Set<string>();
+
+    for (const root of sequenceRoots(nodes, hasInput, index)) {
+        if (seen.size === live.length) {
+            break;
+        }
+
+        const queue = [root.id];
+
+        for (let head = 0; head < queue.length; head++) {
+            for (const edge of outgoing.get(queue[head]) ?? []) {
+                if (seen.has(edge.id)) {
+                    continue;
+                }
+
+                seen.add(edge.id);
+                walked.push(edge);
+                queue.push(edge.to);
+            }
+        }
+    }
+
+    return walked;
+}
+
+/**
+ * Por onde a travessia começa: primeiro o cliente sem nada entrando nele — o
+ * fluxo de um sistema nasce em quem o usa —, depois as outras entradas do
+ * diagrama e, por último, todos os nós, que é o que alcança quem só existe
+ * dentro de um ciclo ou de um componente solto.
+ */
+function sequenceRoots(
+    nodes: readonly Node[],
+    hasInput: ReadonlySet<string>,
+    index: ComponentIndex,
+): Node[] {
+    const entries = nodes.filter((node) => !hasInput.has(node.id));
+
+    return [
+        ...entries.filter((node) => isClientComponent(index, node.type)),
+        ...entries.filter((node) => !isClientComponent(index, node.type)),
+        ...nodes,
+    ];
 }
 
 function orderSignature(edges: readonly Edge[]): string {

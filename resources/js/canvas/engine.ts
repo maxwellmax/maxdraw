@@ -28,7 +28,7 @@ import { legendData } from './legend';
 import type { LinkType, LinkTypeIndex } from './links';
 import { indexLinkTypes, linkTypeOf } from './links';
 import { edgeById, nodeById, nodeHeight } from './nodes';
-import { clearOrder, numberedCount, setOrder } from './order';
+import { autoNumber, clearOrder, numberedCount, setOrder } from './order';
 import type {
     SequenceMap,
     SequenceMenuItem,
@@ -487,6 +487,17 @@ export class CanvasEngine {
 
     clearEdgeOrder(id: string): boolean {
         return this.mutateEdge(() => clearOrder(this.state.edges, id));
+    }
+
+    /**
+     * Renumera o diagrama inteiro pela BFS. Vale um único passo de desfazer:
+     * o botão é uma operação só, e desfazê-la devolve o mapa `id → order` de
+     * todas as arestas de uma vez (US-4.4).
+     */
+    autoNumberOrder(): boolean {
+        return this.mutateEdge(() =>
+            autoNumber(this.state.edges, this.state.nodes, this.index),
+        );
     }
 
     /** Tipo, rótulo e bandeiras mudam o desenho, então todas empilham desfazer. */

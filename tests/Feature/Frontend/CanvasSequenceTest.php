@@ -19,7 +19,8 @@ it('guarda a ordem explícita da conexão no campo order da aresta', function ()
         ->toContain('export function densify(')
         ->toContain('export function numberedCount(')
         ->toContain('export function setOrder(')
-        ->toContain('export function clearOrder(');
+        ->toContain('export function clearOrder(')
+        ->toContain('export function autoNumber(');
 
     expect(frontendSource('canvas/sequence.ts'))
         ->toContain('export function outSeq(')
@@ -184,4 +185,14 @@ it('cobre no Vitest cada teste que a fase pede', function (string $name) {
     'undo_restores_the_order_map_after_setEdgeOrder',
     'undo_restores_the_order_map_after_clearEdgeOrder',
     'numberedCount_reports_the_current_N',
+    'autoNumber_numbers_every_live_edge_exactly_once',
+    'autoNumber_starts_from_client_nodes_without_inputs',
+    'autoNumber_walks_breadth_first_from_each_root',
+    'autoNumber_terminates_on_cyclic_graphs',
+    'autoNumber_gives_a_bidir_edge_a_single_order_and_keeps_its_source_as_root',
+    'autoNumber_ranks_a_numbered_orphan_after_every_live_edge',
+    'autoNumber_keeps_the_relative_order_of_numbered_orphans',
+    'autoNumber_is_deterministic_over_50_consecutive_runs',
+    'autoNumber_renumbers_the_payload_limit_under_16ms',
+    'autoNumberOrder_stacks_a_single_undo_step',
 ]);
