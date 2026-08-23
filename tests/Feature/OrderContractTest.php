@@ -54,6 +54,11 @@ function removalRecordFiles(): array
  * Os arquivos dos sete diretórios que citam um dos termos revogados, como
  * caminho relativo à raiz do projeto.
  *
+ * A varredura é de fonte versionada. O arquivo de banco SQLite mora dentro de
+ * `database_path()` e cita o vocabulário revogado no binário — o nome da
+ * migration `drop_sequence_modes_table` fica gravado na tabela `migrations` —
+ * então artefato de banco fica de fora, como o `.gitignore` já o trata.
+ *
  * @param  array<int, string>  $vocabulary
  * @return array<int, string>
  */
@@ -62,7 +67,7 @@ function filesMentioning(array $vocabulary): array
     $found = [];
 
     foreach (sweptDirectories() as $directory) {
-        foreach (Finder::create()->files()->in($directory) as $file) {
+        foreach (Finder::create()->files()->in($directory)->notName('*.sqlite')->notName('*.sqlite-journal') as $file) {
             $contents = (string) file_get_contents($file->getRealPath());
 
             foreach ($vocabulary as $term) {
