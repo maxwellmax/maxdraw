@@ -100,7 +100,6 @@ const engine = reactive(
         store.state,
         props.catalog.component_categories,
         props.catalog.link_types,
-        props.catalog.sequence_modes,
     ),
 ) as CanvasEngine;
 
@@ -197,11 +196,6 @@ watch(
     (linkTypes) => engine.setLinkTypes(linkTypes),
 );
 
-watch(
-    () => props.catalog.sequence_modes,
-    (modes) => engine.setSequenceModes(modes),
-);
-
 /**
  * As setas desenhadas. A aresta órfã que sobrou de um desfazer parcial fica de
  * fora do desenho sem sair do estado, e a cor vem sempre da categoria do bloco
@@ -256,7 +250,8 @@ const edgeBar = computed(() => {
         edge,
         anchor,
         badge: engine.edgeChip(edge).badge,
-        seq: engine.outSeq()[edge.id] ?? null,
+        order: edge.order,
+        numberedCount: engine.numberedCount,
     };
 });
 
@@ -586,12 +581,14 @@ function placeNode(slug: string): void {
                 :offset-x="engine.view.x"
                 :offset-y="engine.view.y"
                 :legend-visible="!legend.empty"
-                :sequence-mode="engine.seqMode"
-                :sequence-modes="engine.sequenceModes"
+                :show-connection-order="engine.showConnectionOrder"
                 @zoom-in="engine.zoomBy(1.2)"
                 @zoom-out="engine.zoomBy(1 / 1.2)"
                 @fit="engine.fit()"
-                @pick-sequence="engine.setSequenceMode($event)"
+                @toggle-order="
+                    engine.setShowConnectionOrder(!engine.showConnectionOrder)
+                "
+                @auto-order="engine.autoNumberOrder()"
             >
                 <template #wires>
                     <CanvasWire
@@ -666,7 +663,8 @@ function placeNode(slug: string): void {
                         :badge="edgeBar.badge"
                         :dashed="edgeBar.edge.dashed"
                         :bidir="edgeBar.edge.bidir"
-                        :seq="edgeBar.seq"
+                        :order="edgeBar.order"
+                        :numbered-count="edgeBar.numberedCount"
                         @pick-kind="pickEdgeKind(edgeBar.edge.id, $event)"
                         @edit-label="editEdgeLabel(edgeBar.edge.id)"
                         @toggle="
@@ -676,7 +674,10 @@ function placeNode(slug: string): void {
                             )
                         "
                         @reverse="engine.reverseEdge(edgeBar.edge.id)"
-                        @move-seq="engine.moveSeq(edgeBar.edge.id, $event)"
+                        @set-order="
+                            engine.setEdgeOrder(edgeBar.edge.id, $event)
+                        "
+                        @clear-order="engine.clearEdgeOrder(edgeBar.edge.id)"
                         @remove="engine.deleteSelection()"
                     />
                 </template>

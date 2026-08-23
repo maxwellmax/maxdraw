@@ -2,7 +2,14 @@ import type { SessionBody } from './session';
 
 export const SESSION_CACHE_PREFIX = 'sd-session-';
 
-export const SESSION_CACHE_VERSION = 1;
+/**
+ * A versão do rascunho local. Foi a `2` quando a ordem das conexões virou campo
+ * da aresta: o formato v1 guardava o modo de numeração e nenhuma ordem, então
+ * `isEntry()` o descarta no boot e o estado do servidor vence — trabalho não
+ * sincronizado que só exista em v1 se perde, o que é preferível a reidratar um
+ * rascunho com o contrato anterior (RF-18).
+ */
+export const SESSION_CACHE_VERSION = 2;
 
 /**
  * O que o navegador guarda de uma sessão entre uma gravação e a próxima. Além

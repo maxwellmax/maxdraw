@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CanvasEngine } from '@/canvas/engine';
-import { catalogFixture, nodeFixture } from '@/canvas/fixtures';
+import { catalogFixture, edgeFixture, nodeFixture } from '@/canvas/fixtures';
 import { sessionRecordFixture } from './fixtures';
 import type { SessionBody } from './session';
 import { bodyFrom, recordFrom, SessionStore } from './session';
@@ -34,10 +34,7 @@ const PERSISTED_CHANGES: Array<
         (_store, engine) => void engine.renameNode('n1', 'Feed'),
     ],
     ['arestas', (_store, engine) => void engine.addEdge('n1', 'n2')],
-    [
-        'modo de numeração',
-        (_store, engine) => void engine.setSequenceMode('flow'),
-    ],
+    ['ordem exibida', (store) => store.setShowConnectionOrder(false)],
     ['checklist', (store) => store.setCheck(7, true)],
     ['notas', (store) => store.setNotes('particionar por user_id')],
     ['estimativas', (store) => store.setEstimate({ ratio: 200 })],
@@ -86,7 +83,7 @@ describe('SessionStore', () => {
             'nodes',
             'notes',
             'problem_id',
-            'seq_mode',
+            'show_connection_order',
         ]);
     });
 
@@ -134,7 +131,7 @@ describe('SessionStore', () => {
                 notes: 'do navegador',
                 elapsedSeconds: 742,
                 durationMinutes: 60,
-                seqMode: 'flow',
+                showConnectionOrder: false,
             }),
         );
 
@@ -142,7 +139,7 @@ describe('SessionStore', () => {
 
         expect(engine.nodes).toHaveLength(1);
         expect(engine.nodes[0].id).toBe('n9');
-        expect(engine.seqMode).toBe('flow');
+        expect(engine.showConnectionOrder).toBe(false);
         expect(store.notes).toBe('do navegador');
         expect(store.elapsedSeconds).toBe(742);
         expect(store.durationMinutes).toBe(60);
@@ -172,17 +169,32 @@ describe('bodyFrom / recordFrom', () => {
             notes: 'notas',
             elapsedSeconds: 90,
             durationMinutes: 30,
-            seqMode: 'flow',
+            showConnectionOrder: false,
         });
 
         expect(bodyFrom(record)).toMatchObject({
             problem_id: 4,
             elapsed_seconds: 90,
             duration_minutes: 30,
-            seq_mode: 'flow',
+            show_connection_order: false,
         });
 
         expect(recordFrom(bodyFrom(record))).toEqual(record);
+    });
+
+    it('session_body_carries_the_order_of_every_edge', () => {
+        const body = bodyFrom(
+            sessionRecordFixture({
+                nodes: [nodeFixture('n1'), nodeFixture('n2', 400)],
+                edges: [
+                    edgeFixture('e1', 'n1', 'n2', 1),
+                    edgeFixture('e2', 'n2', 'n1'),
+                ],
+            }),
+        );
+
+        expect(body.show_connection_order).toBe(true);
+        expect(body.edges.map((edge) => edge.order)).toEqual([1, null]);
     });
 
     it('copia nós e arestas para o payload do servidor não virar o do motor', () => {

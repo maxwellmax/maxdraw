@@ -4,6 +4,7 @@ import { catalogFixture, edgeFixture, nodeFixture } from './fixtures';
 import { MAX_EDGES, MAX_NODES } from './limits';
 import {
     autoNumber,
+    clampOrderInput,
     clearOrder,
     densify,
     numberedCount,
@@ -434,5 +435,34 @@ describe('autoNumber', () => {
         expect(numberedCount(edges)).toBe(MAX_EDGES);
         expect(isDense(edges)).toBe(true);
         expect(median).toBeLessThan(16);
+    });
+});
+
+describe('clampOrderInput', () => {
+    it('clampOrderInput_caps_a_numbered_edge_at_N', () => {
+        expect(clampOrderInput('999', 3, true)).toBe(3);
+        expect(clampOrderInput(2, 3, true)).toBe(2);
+    });
+
+    it('clampOrderInput_caps_an_unnumbered_edge_at_N_plus_1', () => {
+        expect(clampOrderInput('999', 3, false)).toBe(4);
+        expect(clampOrderInput('1', 0, false)).toBe(1);
+        expect(clampOrderInput('9', 0, false)).toBe(1);
+    });
+
+    it('clampOrderInput_treats_an_empty_field_as_a_no_op', () => {
+        const edges = sequence();
+
+        for (const empty of ['', '   ', 'abc']) {
+            expect(clampOrderInput(empty, 3, true)).toBeNull();
+        }
+
+        expect(orders(edges)).toEqual({ a: 1, b: 2, c: 3 });
+    });
+
+    it('clampOrderInput_pulls_zero_and_negatives_up_to_the_first_slot', () => {
+        expect(clampOrderInput('0', 3, true)).toBe(1);
+        expect(clampOrderInput('-7', 3, true)).toBe(1);
+        expect(clampOrderInput('2.9', 3, true)).toBe(2);
     });
 });

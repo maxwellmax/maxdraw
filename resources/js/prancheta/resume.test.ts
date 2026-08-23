@@ -136,12 +136,30 @@ describe('cache do navegador', () => {
         expect(readCache(storage, SESSION_ID)).toBeNull();
     });
 
-    it('descarta rascunho de outra versão do formato', () => {
+    it('v1_draft_is_discarded_on_boot', () => {
         const storage = memoryStorage();
 
-        writeCache(storage, cacheEntry({ version: 0 }));
+        expect(SESSION_CACHE_VERSION).toBe(2);
+
+        writeCache(storage, cacheEntry({ version: 1 }));
 
         expect(readCache(storage, SESSION_ID)).toBeNull();
+        expect(
+            resolveBoot(serverSession(), readCache(storage, SESSION_ID)),
+        ).toMatchObject({ source: 'server' });
+    });
+
+    it('v2_draft_is_still_rehydrated', () => {
+        const storage = memoryStorage();
+
+        writeCache(storage, cacheEntry({ version: SESSION_CACHE_VERSION }));
+
+        expect(readCache(storage, SESSION_ID)?.body.notes).toBe(
+            'rascunho local',
+        );
+        expect(
+            resolveBoot(serverSession(), readCache(storage, SESSION_ID)),
+        ).toMatchObject({ source: 'local' });
     });
 
     it('não derruba o treino quando o navegador recusa gravar', () => {

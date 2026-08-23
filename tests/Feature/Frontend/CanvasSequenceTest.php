@@ -1,15 +1,11 @@
 <?php
 
-use App\Models\SequenceMode;
-use App\Models\TrainingSession;
-use App\Models\User;
-use Inertia\Testing\AssertableInertia;
-
 /**
- * A numeração das setas (Phase 12): os três modos derivados do desenho, o botão
- * que os troca e a reordenação das saídas. O comportamento é testado pelo
- * Vitest; o que a suíte PHP guarda aqui é o contrato — os modos vindo do
- * catálogo do servidor, o modo persistido na sessão e a cobertura da fase.
+ * A ordem explícita das conexões (Phase 12, reescrita pela feature
+ * `ordem-explicita-de-conexoes`): o campo `order` da aresta, a sequência única
+ * do diagrama e os controles que a editam. O comportamento é testado pelo
+ * Vitest; o que a suíte PHP guarda aqui é o contrato — a forma do tipo, os
+ * `data-testid` do toolbar e do painel, e a cobertura da fase.
  */
 it('guarda a ordem explícita da conexão no campo order da aresta', function () {
     expect(frontendSource('canvas/types.ts'))
@@ -20,49 +16,16 @@ it('guarda a ordem explícita da conexão no campo order da aresta', function ()
         ->toContain('export function numberedCount(')
         ->toContain('export function setOrder(')
         ->toContain('export function clearOrder(')
-        ->toContain('export function autoNumber(');
-
-    expect(frontendSource('canvas/sequence.ts'))
-        ->toContain('export function outSeq(')
-        ->toContain('export function flowSeq(')
-        ->toContain('export function seqMap(');
+        ->toContain('export function autoNumber(')
+        ->toContain('export function clampOrderInput(');
 });
 
-it('só numera as saídas do bloco que tem mais de uma', function () {
-    expect(frontendSource('canvas/sequence.ts'))
-        ->toMatch('/const total = outputs\.get\(edge\.from\) \?\? 0;\s*if \(total < 2\) \{\s*continue;/');
-});
-
-it('começa a travessia do fluxo pelo cliente sem entrada', function () {
-    expect(frontendSource('canvas/sequence.ts'))
+it('começa a numeração automática pelo cliente sem entrada', function () {
+    expect(frontendSource('canvas/order.ts'))
         ->toMatch('/const entries = nodes\.filter\(\(node\) => !hasInput\.has\(node\.id\)\);\s*return \[\s*\.\.\.entries\.filter\(\(node\) => isClientComponent\(index, node\.type\)\),\s*\.\.\.entries\.filter\(\(node\) => !isClientComponent\(index, node\.type\)\),\s*\.\.\.nodes,\s*\];/');
 
     expect(frontendSource('canvas/catalog.ts'))
         ->toContain("export const CLIENT_CATEGORY = 'client';");
-});
-
-it('lê os três modos do catálogo do servidor, sem lista paralela no cliente', function () {
-    seedCatalog();
-
-    $names = SequenceMode::query()->active()->pluck('name', 'slug');
-
-    expect($names->all())->toBe([
-        'out' => 'Ordem de saída de cada bloco',
-        'flow' => 'Sequência do fluxo inteiro',
-        'off' => 'Sem números',
-    ]);
-
-    $client = frontendSource('canvas/sequence.ts');
-
-    foreach ($names as $name) {
-        expect($client)->not->toContain($name);
-    }
-
-    expect($client)->toContain("export const SEQUENCE_MENU: SequenceMode[] = ['off', 'out', 'flow'];");
-
-    expect(frontendSource('pages/Board.vue'))
-        ->toContain('props.catalog.sequence_modes')
-        ->toContain(':sequence-modes="engine.sequenceModes"');
 });
 
 it('desenha o número dentro do chip, num pill sólido na cor da origem', function () {
@@ -74,8 +37,7 @@ it('desenha o número dentro do chip, num pill sólido na cor da origem', functi
         ->toContain('data-testid="edge-chip-seq"')
         ->toContain('v-if="order !== null"')
         ->toContain('rounded-full')
-        ->toContain('v-text="order"')
-        ->not->toContain('SequenceNumber');
+        ->toContain('v-text="order"');
 
     // Pill sólido: o fundo é a cor da seta e o número sai na cor do papel.
     preg_match('/const pillStyle = computed\(\(\) => \(\{(.*?)\n\}\)\);/s', $chip, $pill);
@@ -103,8 +65,7 @@ it('desenha o número dentro do chip, num pill sólido na cor da origem', functi
 it('desenha a partir do campo order da aresta, respeitando a bandeira', function () {
     expect(frontendSource('pages/Board.vue'))
         ->toContain('order: engine.showConnectionOrder ? edge.order : null,')
-        ->toContain(':order="wire.order"')
-        ->not->toContain('engine.seqMap()');
+        ->toContain(':order="wire.order"');
 
     expect(frontendSource('canvas/engine.ts'))
         ->toMatch('/get showConnectionOrder\(\): boolean \{\s*return this\.state\.showConnectionOrder;\s*\}/')
@@ -112,90 +73,81 @@ it('desenha a partir do campo order da aresta, respeitando a bandeira', function
 
     // A bandeira é estado de sessão, não conteúdo do diagrama.
     expect(frontendSource('canvas/types.ts'))
-        ->toMatch('/export type SessionState = \{\s*nodes: Node\[\];\s*edges: Edge\[\];\s*seqMode: SequenceMode;\s*showConnectionOrder: boolean;\s*\}/')
+        ->toMatch('/export type SessionState = \{\s*nodes: Node\[\];\s*edges: Edge\[\];\s*showConnectionOrder: boolean;\s*\}/')
         ->toMatch('/export type DiagramSnapshot = \{\s*nodes: Node\[\];\s*edges: Edge\[\];\s*\}/');
 
     expect(frontendSource('canvas/undo.ts'))
         ->toContain('JSON.stringify({ nodes: diagram.nodes, edges: diagram.edges })');
 });
 
-it('abre o menu dos três modos no botão da barra de zoom', function () {
-    expect(frontendSource('components/prancheta/ZoomBar.vue'))
-        ->toContain('data-testid="sequence-mode"')
-        ->toContain('<SequenceMenu')
-        ->toContain("const numbering = computed(() => props.sequenceMode !== 'off');")
-        ->toContain("emit('pick-sequence', mode);")
-        ->toContain('onClickOutside(seqButton, () => (menuOpen.value = false));');
+it('põe o toggle de exibição e a numeração automática no toolbar do palco', function () {
+    $zoombar = frontendSource('components/prancheta/ZoomBar.vue');
 
-    expect(frontendSource('components/prancheta/SequenceMenu.vue'))
-        ->toContain('data-testid="sequence-menu"')
-        ->toContain('Numeração das setas')
-        ->toContain('data-testid="sequence-option"')
-        ->toContain("mode === option.mode\n                    ? 'font-semibold text-sd-accent'");
+    expect($zoombar)
+        ->toContain('data-testid="order-toggle"')
+        ->toContain(':aria-pressed="showConnectionOrder"')
+        ->toContain("@click=\"\$emit('toggle-order')\"")
+        ->toContain('data-testid="order-auto"')
+        ->toContain("@click=\"\$emit('auto-order')\"")
+        ->not->toContain('data-testid="sequence-mode"')
+        ->not->toContain('SequenceMenu');
+
+    expect(frontendSource('components/prancheta/StageCanvas.vue'))
+        ->toContain('showConnectionOrder?: boolean;')
+        ->toContain(':show-connection-order="showConnectionOrder"')
+        ->toContain("'toggle-order': [];")
+        ->toContain("'auto-order': [];");
 });
 
-it('mostra o controle de reordenação na barra flutuante da seta', function () {
-    expect(frontendSource('components/prancheta/EdgeFloatBar.vue'))
-        ->toContain('<template v-if="seq">')
-        ->toContain('data-testid="edge-seq-back"')
-        ->toContain('data-testid="edge-seq-position"')
-        ->toContain('data-testid="edge-seq-forward"')
-        ->toContain(':disabled="seq.index <= 1"')
-        ->toContain(':disabled="seq.index >= seq.total"')
-        ->toContain("emit('move-seq', -1)")
-        ->toContain("emit('move-seq', 1)")
-        ->toContain('{{ seq.index }}/{{ seq.total }}');
+it('troca os botões de empurrar por um campo de ordem e um de remover', function () {
+    $bar = frontendSource('components/prancheta/EdgeFloatBar.vue');
 
+    expect($bar)
+        ->toContain('data-testid="edge-order-input"')
+        ->toContain('type="number"')
+        ->toContain(':value="order ?? \'\'"')
+        ->toContain('@change="commitOrder"')
+        ->toContain('@keyup.enter="commitOrder"')
+        ->toContain('@blur="commitOrder"')
+        ->toContain('data-testid="edge-order-clear"')
+        ->toContain("@click=\"emit('clear-order')\"")
+        ->not->toContain('data-testid="edge-seq-back"')
+        ->not->toContain('data-testid="edge-seq-position"')
+        ->not->toContain('data-testid="edge-seq-forward"');
+
+    // O clamp mora no motor; o componente só liga o campo nele.
+    expect($bar)->toContain("import { clampOrderInput } from '@/canvas/order';")
+        ->toMatch('/const wanted = clampOrderInput\(\s*field\.value,\s*props\.numberedCount,\s*props\.order !== null,\s*\);/');
+});
+
+it('liga na prancheta os quatro controles da ordem', function () {
     expect(frontendSource('pages/Board.vue'))
-        ->toContain('seq: engine.outSeq()[edge.id] ?? null,')
-        ->toContain('@move-seq="engine.moveSeq(edgeBar.edge.id, $event)"');
+        ->toContain('engine.setShowConnectionOrder(!engine.showConnectionOrder)')
+        ->toContain('@auto-order="engine.autoNumberOrder()"')
+        ->toContain('engine.setEdgeOrder(edgeBar.edge.id, $event)')
+        ->toContain('@clear-order="engine.clearEdgeOrder(edgeBar.edge.id)"')
+        ->toContain(':order="edgeBar.order"')
+        ->toContain(':numbered-count="edgeBar.numberedCount"');
 });
 
-it('empilha desfazer ao reordenar, e não ao trocar de modo', function () {
+it('empilha desfazer ao mudar a ordem, e não ao acender os números', function () {
     expect(frontendSource('canvas/engine.ts'))
-        ->toMatch('/moveSeq\(id: string, direction: number\): boolean \{\s*return this\.mutateEdge\(/')
-        ->toMatch('/setSequenceMode\(mode: SequenceMode\): boolean \{\s*const next = sequenceModeOf\(mode\);\s*if \(this\.state\.seqMode === next\) \{\s*return false;\s*\}\s*this\.state\.seqMode = next;\s*return true;\s*\}/');
+        ->toMatch('/setEdgeOrder\(id: string, k: number\): boolean \{\s*return this\.mutateEdge\(/')
+        ->toMatch('/clearEdgeOrder\(id: string\): boolean \{\s*return this\.mutateEdge\(/')
+        ->toMatch('/autoNumberOrder\(\): boolean \{\s*return this\.mutateEdge\(/');
 });
 
-it('grava o modo na sessão e o devolve ao reabrir a prancheta', function () {
-    seedCatalog();
-
-    $user = User::factory()->create();
-    $session = TrainingSession::factory()->withDiagram(3, 2)->create(['user_id' => $user->id]);
-
-    $this->actingAs($user)
-        ->putJson(route('sessions.update', $session), autosaveBody(['seq_mode' => 'flow']))
-        ->assertOk();
-
-    expect($session->refresh()->sequenceMode->slug)->toBe('flow');
-
-    $this->actingAs($user)
-        ->get(route('board'))
-        ->assertOk()
-        ->assertInertia(fn (AssertableInertia $page) => $page
-            ->component('Board')
-            ->where('session.seq_mode', 'flow')
-            ->count('catalog.sequence_modes', 3)
-            ->etc());
-});
+it('apaga do disco o módulo e o menu do modo de numeração', function (string $path) {
+    expect(resource_path('js/'.$path))->not->toBeFile();
+})->with([
+    'motor do modo' => ['canvas/sequence.ts'],
+    'testes do modo' => ['canvas/sequence.test.ts'],
+    'menu do modo' => ['components/prancheta/SequenceMenu.vue'],
+]);
 
 it('cobre no Vitest cada teste que a fase pede', function (string $name) {
     expect(canvasTestNames())->toContain($name);
 })->with([
-    'outSeq_skips_blocks_with_a_single_output',
-    'outSeq_numbers_by_array_order',
-    'outSeq_ignores_dangling_edges',
-    'outSeq_reports_correct_total_per_block',
-    'flowSeq_starts_from_client_nodes_without_inputs',
-    'flowSeq_follows_output_order_depth_first',
-    'flowSeq_terminates_on_cyclic_graphs',
-    'flowSeq_covers_orphan_components_at_the_end',
-    'flowSeq_numbers_every_live_edge_exactly_once',
-    'seqMap_returns_empty_when_off',
-    'invalid_mode_normalizes_to_out',
-    'moveSeq_swaps_with_sibling_output_only',
-    'moveSeq_refuses_at_both_ends',
-    'reordering_changes_flow_traversal_order',
     'densify_rewrites_sparse_orders_to_1_to_N',
     'densify_breaks_ties_by_array_position',
     'densify_includes_orphan_edges',
@@ -207,6 +159,10 @@ it('cobre no Vitest cada teste que a fase pede', function (string $name) {
     'setOrder_refuses_an_unknown_edge_or_a_value_that_is_not_a_number',
     'clearOrder_removes_from_the_sequence_and_densifies',
     'clearOrder_is_a_no_op_on_an_edge_already_outside_the_sequence',
+    'clampOrderInput_caps_a_numbered_edge_at_N',
+    'clampOrderInput_caps_an_unnumbered_edge_at_N_plus_1',
+    'clampOrderInput_treats_an_empty_field_as_a_no_op',
+    'clampOrderInput_pulls_zero_and_negatives_up_to_the_first_slot',
     'no_operation_sequence_produces_a_duplicate_or_a_hole',
     'new_edge_starts_outside_the_sequence',
     'removeEdge_densifies_the_remaining_orders',
@@ -225,7 +181,15 @@ it('cobre no Vitest cada teste que a fase pede', function (string $name) {
     'autoNumber_is_deterministic_over_50_consecutive_runs',
     'autoNumber_renumbers_the_payload_limit_under_16ms',
     'autoNumberOrder_stacks_a_single_undo_step',
-    'toggling_show_connection_order_does_not_push_undo',
     'undo_does_not_revert_show_connection_order',
     'diagram_snapshot_serializes_only_nodes_and_edges',
+]);
+
+it('cobre no Vitest o contrato do cliente e o boot densificado', function (string $name) {
+    expect(pranchetaTestNames())->toContain($name);
+})->with([
+    'session_body_carries_the_order_of_every_edge',
+    'sparse_order_boots_dense_and_already_saved',
+    'v1_draft_is_discarded_on_boot',
+    'v2_draft_is_still_rehydrated',
 ]);

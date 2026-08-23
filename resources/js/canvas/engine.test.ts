@@ -511,20 +511,7 @@ describe('desfazer', () => {
         expect(engine.redo()).toBe(false);
     });
 
-    it('changing_sequence_mode_does_not_push_undo', () => {
-        const engine = engineWith();
-
-        engine.addNode('api');
-
-        const depth = engine.undoDepth;
-
-        expect(engine.setSequenceMode('flow')).toBe(true);
-        expect(engine.seqMode).toBe('flow');
-        expect(engine.setSequenceMode('off')).toBe(true);
-        expect(engine.undoDepth).toBe(depth);
-    });
-
-    it('toggling_show_connection_order_does_not_push_undo', () => {
+    it('toggling_connection_order_does_not_push_undo', () => {
         const engine = engineWith(
             stateFixture(
                 [nodeFixture('a'), nodeFixture('b', 400)],
@@ -584,12 +571,12 @@ describe('desfazer', () => {
 
         engine.addNode('api');
         engine.panBy(200, 200);
-        engine.setSequenceMode('flow');
+        engine.setShowConnectionOrder(false);
         engine.selectNode(engine.nodes[0].id);
         engine.undo();
 
         expect(engine.view).toMatchObject({ x: 200, y: 200 });
-        expect(engine.seqMode).toBe('flow');
+        expect(engine.showConnectionOrder).toBe(false);
         expect(engine.nodes).toHaveLength(0);
     });
 });

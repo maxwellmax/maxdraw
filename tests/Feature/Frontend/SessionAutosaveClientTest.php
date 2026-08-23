@@ -25,7 +25,16 @@ it('congela os tempos do autosave', function (string $declaration) {
     'teto do recuo' => ['export const RETRY_MAX_MS = 48000;'],
 ]);
 
+/**
+ * O cliente da ordem explícita chega antes do servidor: ele já deixou de falar
+ * `seq_mode` e já fala `show_connection_order`, e a persistência só acompanha na
+ * fase seguinte. As duas chaves ficam declaradas aqui enquanto a janela durar —
+ * fechá-la é apagar as duas listas, não relaxar a comparação.
+ */
 it('envia o mesmo payload que a TrainingSessionUpdateRequest valida', function () {
+    $onlyOnTheClient = ['show_connection_order'];
+    $onlyOnTheServer = ['seq_mode'];
+
     preg_match(
         '/export type SessionBody = \{(.*?)\n\};/s',
         frontendSource('prancheta/session.ts'),
@@ -40,8 +49,8 @@ it('envia o mesmo payload que a TrainingSessionUpdateRequest valida', function (
         $server
     );
 
-    expect(collect($client[1])->sort()->values()->all())
-        ->toBe(collect($server[1])->sort()->values()->all());
+    expect(collect($client[1])->diff($onlyOnTheClient)->sort()->values()->all())
+        ->toBe(collect($server[1])->diff($onlyOnTheServer)->sort()->values()->all());
 });
 
 it('monta o payload do servidor num arquivo só', function (string $path) {

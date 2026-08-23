@@ -46,10 +46,9 @@ function workflowSources(): array
         ]],
         4 => ['Tipar as ligações e ordenar a sequência', [
             'resources/js/canvas/links.ts',
-            'resources/js/canvas/sequence.ts',
+            'resources/js/canvas/order.ts',
             'resources/js/components/prancheta/EdgeFloatBar.vue',
             'resources/js/components/prancheta/LinkKindMenu.vue',
-            'resources/js/components/prancheta/SequenceMenu.vue',
         ]],
         5 => ['Ler a legenda automática', [
             'resources/js/canvas/legend.ts',

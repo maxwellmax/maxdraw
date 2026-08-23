@@ -30,8 +30,6 @@ export type Edge = {
 /** As duas bandeiras que o usuário alterna à mão, independentes do tipo. */
 export type EdgeFlag = 'dashed' | 'bidir';
 
-export type SequenceMode = 'off' | 'out' | 'flow';
-
 /**
  * O estado da sessão que o motor governa. Notas, checklist, estimativa e tempo
  * decorrido são persistidos junto da sessão, mas não pertencem ao motor: quem
@@ -44,7 +42,6 @@ export type SequenceMode = 'off' | 'out' | 'flow';
 export type SessionState = {
     nodes: Node[];
     edges: Edge[];
-    seqMode: SequenceMode;
     showConnectionOrder: boolean;
 };
 

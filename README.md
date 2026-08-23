@@ -120,7 +120,7 @@ conferem com o protótipo. Onde cada um vive:
 | 1 | Registrar-se, entrar e retomar o treino | Fortify · `BoardController` + `CurrentSessionResolver` + `CatalogService` · `pages/Board.vue` |
 | 2 | Escolher o problema e iniciar a sessão | `ProblemPicker.vue` · `ProblemBrief.vue` · `prancheta/problems.ts` · `POST /api/sessions` |
 | 3 | Desenhar o diagrama | `canvas/` (`nodes`, `edges`, `geometry`, `layout`, `view`, `undo`) · `StageCanvas.vue` · `ComponentPalette.vue` |
-| 4 | Tipar as ligações e ordenar a sequência | `canvas/links.ts` · `canvas/sequence.ts` · `EdgeFloatBar.vue` · `LinkKindMenu.vue` · `SequenceMenu.vue` |
+| 4 | Tipar as ligações e ordenar a sequência | `canvas/links.ts` · `canvas/order.ts` · `EdgeFloatBar.vue` · `LinkKindMenu.vue` |
 | 5 | Ler a legenda automática | `canvas/legend.ts` · `prancheta/legend.ts` · `LegendPanel.vue` · `useLegend` |
 | 6 | Cronometrar as fases e marcar o checklist | `prancheta/clock.ts` · `prancheta/roteiro.ts` · `DrillClock.vue` · `PhaseAccordion.vue` |
 | 7 | Fazer as estimativas de capacidade | `prancheta/estimate.ts` · `EstimatePanel.vue` |

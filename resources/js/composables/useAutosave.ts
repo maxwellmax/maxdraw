@@ -1,4 +1,5 @@
 import { onBeforeUnmount, onMounted, reactive, watch } from 'vue';
+import { densify } from '@/canvas/order';
 import { useToast } from '@/composables/useToast';
 import { sendSessionState } from '@/lib/sessionTransport';
 import type { SessionTransport } from '@/prancheta/autosave';
@@ -30,6 +31,12 @@ export function browserStorage(): SessionStorage | null {
  * quando ele é o mais novo, o do servidor quando foi ele que andou — e nesse
  * caso o usuário é avisado, em vez de o servidor sobrescrever em silêncio
  * (US-8.3).
+ *
+ * Os dois lados são densificados: o corpo que vence o boot, porque é o que
+ * vira estado, e o do servidor, porque é a assinatura do que está salvo. Uma
+ * sessão gravada com a ordem esparsa abre densa e **salva** — densificar só um
+ * dos lados acenderia "não salvo" e dispararia um `PUT` fantasma no boot de
+ * toda sessão antiga (RF-03a).
  */
 export function createSessionStore(payload: SessionPayload): SessionStore {
     const server = {
@@ -38,7 +45,11 @@ export function createSessionStore(payload: SessionPayload): SessionStore {
         updatedAt: payload.updated_at,
     };
 
+    densify(server.body.edges);
+
     const boot = resolveBoot(server, readCache(browserStorage(), server.id));
+
+    densify(boot.body.edges);
 
     if (boot.serverIsNewer) {
         useToast().warn('serverVersionIsNewer');

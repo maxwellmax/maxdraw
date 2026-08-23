@@ -99,7 +99,7 @@ it('cobre no Vitest cada teste que a fase pede', function (string $name) {
     'undo_stack_caps_at_60_states',
     'undo_restores_previous_nodes_and_edges',
     'redo_stack_is_cleared_by_new_action',
-    'changing_sequence_mode_does_not_push_undo',
+    'toggling_connection_order_does_not_push_undo',
     'pan_and_zoom_do_not_push_undo',
     'label_is_capped_at_60_characters',
     'empty_label_falls_back_to_short_name',

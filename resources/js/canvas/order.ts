@@ -93,6 +93,30 @@ export function clearOrder(edges: readonly Edge[], id: string): boolean {
 }
 
 /**
+ * O que o campo de ordem do painel comita. A aresta que já está na sequência
+ * cabe em `N` posições; a que ainda não está tem uma a mais, porque entrar
+ * estica a sequência. Campo vazio — ou qualquer coisa que não seja número —
+ * devolve `null` e nada é comitado: quem tira da sequência é o botão, nunca o
+ * campo (UI-03).
+ */
+export function clampOrderInput(
+    value: string | number,
+    numbered: number,
+    isNumbered: boolean,
+): number | null {
+    const text = String(value).trim();
+    const parsed = Number(text);
+
+    if (text === '' || !Number.isFinite(parsed)) {
+        return null;
+    }
+
+    const ceiling = Math.max(1, isNumbered ? numbered : numbered + 1);
+
+    return Math.min(ceiling, Math.max(1, Math.trunc(parsed)));
+}
+
+/**
  * Numera o diagrama inteiro de uma vez: uma BFS determinística percorre as
  * arestas vivas e as reescreve de 1 a L na ordem em que as alcança,
  * sobrescrevendo qualquer `order` anterior — `null` inclusive (RF-10).

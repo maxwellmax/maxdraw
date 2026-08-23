@@ -9,7 +9,6 @@ import {
     addEdge,
     addNode,
     moveNode,
-    moveSeq,
     removeEdge,
     removeNode,
     renameNode,
@@ -29,12 +28,6 @@ import type { LinkType, LinkTypeIndex } from './links';
 import { indexLinkTypes, linkTypeOf } from './links';
 import { edgeById, nodeById, nodeHeight } from './nodes';
 import { autoNumber, clearOrder, numberedCount, setOrder } from './order';
-import type {
-    SequenceMap,
-    SequenceMenuItem,
-    SequenceModeOption,
-} from './sequence';
-import { outSeq, seqMap, sequenceMenu, sequenceModeOf } from './sequence';
 import type { SvgPalette } from './svg';
 import { buildSVG } from './svg';
 import type {
@@ -49,7 +42,6 @@ import type {
     Point,
     Selection,
     SelectionKind,
-    SequenceMode,
     SessionState,
     Size,
     View,
@@ -79,8 +71,8 @@ type Drag = {
  * de desfazer num objeto só, e nenhuma parte dele conhece Vue ou o DOM — a
  * camada de tela mede alturas e traduz eventos, o motor decide o resto.
  *
- * Só o que muda o diagrama empilha desfazer. Pan, zoom, seleção e modo de
- * numeração mudam o que se vê, não o que foi desenhado (US-3.5, US-4.3).
+ * Só o que muda o diagrama empilha desfazer. Pan, zoom, seleção e a bandeira de
+ * exibição da ordem mudam o que se vê, não o que foi desenhado (US-3.5).
  */
 export class CanvasEngine {
     state: SessionState;
@@ -107,18 +99,14 @@ export class CanvasEngine {
 
     private linkDrag: LinkDrag | null = null;
 
-    private sequenceModeOptions: readonly SequenceModeOption[] = [];
-
     constructor(
         state: SessionState,
         categories: readonly CatalogCategory[] = [],
         linkTypes: readonly LinkType[] = [],
-        sequenceModes: readonly SequenceModeOption[] = [],
     ) {
         this.state = state;
         this.index = indexComponents(categories);
         this.linkIndex = indexLinkTypes(linkTypes);
-        this.sequenceModeOptions = sequenceModes;
     }
 
     get nodes(): Node[] {
@@ -129,18 +117,9 @@ export class CanvasEngine {
         return this.state.edges;
     }
 
-    get seqMode(): SequenceMode {
-        return sequenceModeOf(this.state.seqMode);
-    }
-
     /** Se os números das conexões aparecem na tela e no arquivo exportado. */
     get showConnectionOrder(): boolean {
         return this.state.showConnectionOrder;
-    }
-
-    /** As três opções do menu de numeração, na ordem em que a lista as mostra. */
-    get sequenceModes(): SequenceMenuItem[] {
-        return sequenceMenu(this.sequenceModeOptions);
     }
 
     /** O `N` da sequência: quantas arestas estão numeradas agora. */
@@ -187,10 +166,6 @@ export class CanvasEngine {
 
     setLinkTypes(linkTypes: readonly LinkType[]): void {
         this.linkIndex = indexLinkTypes(linkTypes);
-    }
-
-    setSequenceModes(modes: readonly SequenceModeOption[]): void {
-        this.sequenceModeOptions = modes;
     }
 
     setSize(size: Size): void {
@@ -569,19 +544,6 @@ export class CanvasEngine {
     }
 
     /**
-     * O número de cada seta no modo corrente. Mudar de modo não desenha nada
-     * novo: os números saem do mesmo diagrama, lidos de outro jeito (US-4.3).
-     */
-    seqMap(): SequenceMap {
-        return seqMap(
-            this.state.seqMode,
-            this.state.edges,
-            this.state.nodes,
-            this.index,
-        );
-    }
-
-    /**
      * A legenda de agora, derivada inteira do desenho: nenhuma configuração do
      * usuário entra nela, e diagrama vazio devolve legenda vazia (US-5.1).
      */
@@ -605,19 +567,6 @@ export class CanvasEngine {
     }
 
     /**
-     * A ordem de saída de cada bloco, que é o que os botões `‹ ›` reordenam.
-     * Vale mesmo com a numeração desligada: a ordem existe no desenho, o modo
-     * só decide se ela aparece (US-4.4).
-     */
-    outSeq(): SequenceMap {
-        return outSeq(this.state.edges, this.state.nodes);
-    }
-
-    moveSeq(id: string, direction: number): boolean {
-        return this.mutateEdge(() => moveSeq(this.state, id, direction));
-    }
-
-    /**
      * Acende ou apaga os números das conexões. É ajuste de visualização: não
      * empilha desfazer e não entra no `DiagramSnapshot`, e os `order` das
      * arestas continuam intactos com a bandeira apagada (US-3.5).
@@ -628,19 +577,6 @@ export class CanvasEngine {
         }
 
         this.state.showConnectionOrder = value;
-
-        return true;
-    }
-
-    /** Trocar de modo é ajuste de visualização: não empilha desfazer (US-4.3). */
-    setSequenceMode(mode: SequenceMode): boolean {
-        const next = sequenceModeOf(mode);
-
-        if (this.state.seqMode === next) {
-            return false;
-        }
-
-        this.state.seqMode = next;
 
         return true;
     }

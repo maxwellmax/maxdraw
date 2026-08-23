@@ -1,4 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { edgeFixture, nodeFixture } from '@/canvas/fixtures';
+import type { Edge } from '@/canvas/types';
+import { createSessionStore } from '@/composables/useAutosave';
+import type { SessionPayload } from '@/types/board';
 import type {
     AutosaveOptions,
     SessionTransport,
@@ -418,5 +422,67 @@ describe('resiliência', () => {
         expect(storage.items.get(sessionCacheKey(SESSION_ID))).toContain(
             'quinhentos do servidor',
         );
+    });
+});
+
+/**
+ * O boot da prancheta: o corpo que vence e a assinatura do que está salvo saem
+ * os dois densificados, então abrir uma sessão gravada com a ordem esparsa não
+ * acende "não salvo" nem dispara envio nenhum (RF-03a).
+ */
+describe('boot da prancheta', () => {
+    function payloadWith(edges: Edge[]): SessionPayload {
+        return {
+            id: SESSION_ID,
+            problem_id: null,
+            duration_minutes: 45,
+            elapsed_seconds: 0,
+            notes: '',
+            nodes: [
+                nodeFixture('n1'),
+                nodeFixture('n2', 400),
+                nodeFixture('n3', 800),
+            ],
+            edges,
+            checks: {},
+            estimate: {},
+            last_opened_at: null,
+            updated_at: SERVER_UPDATED_AT,
+        };
+    }
+
+    it('sparse_order_boots_dense_and_already_saved', async () => {
+        const store = createSessionStore(
+            payloadWith([
+                edgeFixture('e1', 'n1', 'n2', 1),
+                edgeFixture('e2', 'n2', 'n3', 3),
+                edgeFixture('e3', 'n3', 'n1', 7),
+            ]),
+        );
+
+        expect(store.edges.map((edge) => edge.order)).toEqual([1, 2, 3]);
+        expect(store.showConnectionOrder).toBe(true);
+        expect(store.isDirty).toBe(false);
+
+        const sent: SessionBody[] = [];
+        const autosave = new Autosave({
+            store,
+            storage: memoryStorage(),
+            send: async (_id: number, body: SessionBody) => {
+                sent.push(body);
+
+                return { updated_at: ACK_UPDATED_AT };
+            },
+        });
+
+        // O mesmo que o `useAutosave` faz no `onMounted`: só toca se está suja.
+        if (store.isDirty) {
+            autosave.touch();
+        }
+
+        await vi.advanceTimersByTimeAsync(SERVER_SAVE_MAX_WAIT_MS);
+
+        expect(sent).toEqual([]);
+        expect(autosave.chip).toBe('saved');
     });
 });

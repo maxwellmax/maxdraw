@@ -1,6 +1,5 @@
 import type { CatalogCategory } from './catalog';
 import type { LinkType } from './links';
-import type { SequenceModeOption } from './sequence';
 import type { SvgPalette } from './svg';
 import type { Edge, Node, SessionState } from './types';
 
@@ -187,32 +186,6 @@ export function linkTypesFixture(): LinkType[] {
     }));
 }
 
-/**
- * Os três modos de numeração como o `SequenceModeSeeder` os grava, na ordem do
- * ciclo. O `legend_text` é a linha que a legenda automática mostra.
- */
-export function sequenceModesFixture(): SequenceModeOption[] {
-    return [
-        [
-            'out',
-            'Ordem de saída de cada bloco',
-            'quando um bloco dispara mais de uma coisa, o número diz o que vem antes',
-        ],
-        [
-            'flow',
-            'Sequência do fluxo inteiro',
-            'os passos na ordem em que acontecem, começando pelo cliente',
-        ],
-        ['off', 'Sem números', ''],
-    ].map(([slug, name, text], position) => ({
-        id: position + 1,
-        slug,
-        name,
-        legend_text: text,
-        position: position + 1,
-    }));
-}
-
 export function nodeFixture(id: string, x = 0, y = 0, type = 'api'): Node {
     return { id, type, label: id, x, y };
 }
@@ -240,7 +213,7 @@ export function stateFixture(
     edges: Edge[] = [],
     showConnectionOrder = true,
 ): SessionState {
-    return { nodes, edges, seqMode: 'out', showConnectionOrder };
+    return { nodes, edges, showConnectionOrder };
 }
 
 /**

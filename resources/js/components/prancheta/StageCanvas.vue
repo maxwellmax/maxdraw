@@ -1,7 +1,5 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import type { SequenceMenuItem } from '@/canvas/sequence';
-import type { SequenceMode } from '@/canvas/types';
 import { GRID_SIZE } from '@/canvas/view';
 import LegendPanel from '@/components/prancheta/LegendPanel.vue';
 import ZoomBar from '@/components/prancheta/ZoomBar.vue';
@@ -13,8 +11,7 @@ const props = withDefaults(
         offsetX?: number;
         offsetY?: number;
         legendVisible?: boolean;
-        sequenceMode?: SequenceMode;
-        sequenceModes?: SequenceMenuItem[];
+        showConnectionOrder?: boolean;
     }>(),
     {
         empty: true,
@@ -22,8 +19,7 @@ const props = withDefaults(
         offsetX: 0,
         offsetY: 0,
         legendVisible: false,
-        sequenceMode: 'out',
-        sequenceModes: () => [],
+        showConnectionOrder: true,
     },
 );
 
@@ -31,7 +27,8 @@ defineEmits<{
     'zoom-in': [];
     'zoom-out': [];
     fit: [];
-    'pick-sequence': [mode: SequenceMode];
+    'toggle-order': [];
+    'auto-order': [];
 }>();
 
 const gridStyle = computed(() => ({
@@ -109,12 +106,12 @@ defineExpose({ el: root });
 
         <ZoomBar
             :scale="scale"
-            :sequence-mode="sequenceMode"
-            :sequence-modes="sequenceModes"
+            :show-connection-order="showConnectionOrder"
             @zoom-in="$emit('zoom-in')"
             @zoom-out="$emit('zoom-out')"
             @fit="$emit('fit')"
-            @pick-sequence="$emit('pick-sequence', $event)"
+            @toggle-order="$emit('toggle-order')"
+            @auto-order="$emit('auto-order')"
         />
 
         <LegendPanel :visible="legendVisible">

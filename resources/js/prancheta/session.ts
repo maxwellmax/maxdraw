@@ -1,5 +1,4 @@
-import { sequenceModeOf } from '@/canvas/sequence';
-import type { Edge, Node, SequenceMode, SessionState } from '@/canvas/types';
+import type { Edge, Node, SessionState } from '@/canvas/types';
 import type { SessionPayload } from '@/types/board';
 
 /**
@@ -47,7 +46,7 @@ export type SessionBody = {
     notes: string;
     elapsed_seconds: number;
     duration_minutes: number;
-    seq_mode: SequenceMode;
+    show_connection_order: boolean;
     estimate: SessionEstimate;
 };
 
@@ -60,7 +59,7 @@ export function bodyFrom(state: SessionRecord): SessionBody {
         notes: state.notes,
         elapsed_seconds: state.elapsedSeconds,
         duration_minutes: state.durationMinutes,
-        seq_mode: state.seqMode,
+        show_connection_order: state.showConnectionOrder,
         estimate: state.estimate,
     };
 }
@@ -79,7 +78,7 @@ export function bodyFromPayload(payload: SessionPayload): SessionBody {
         notes: payload.notes ?? '',
         elapsed_seconds: numberOf(payload.elapsed_seconds),
         duration_minutes: numberOf(payload.duration_minutes),
-        seq_mode: sequenceModeOf(payload.seq_mode),
+        show_connection_order: payload.show_connection_order ?? true,
         estimate: estimateFrom(payload.estimate),
     };
 }
@@ -112,8 +111,7 @@ export function recordFrom(body: SessionBody): SessionRecord {
         problemId: body.problem_id ?? null,
         nodes: body.nodes.map((node) => ({ ...node })),
         edges: body.edges.map((edge) => ({ ...edge })),
-        seqMode: body.seq_mode,
-        showConnectionOrder: true,
+        showConnectionOrder: body.show_connection_order,
         checks: { ...body.checks },
         notes: body.notes,
         estimate: { ...body.estimate },
@@ -165,8 +163,8 @@ export class SessionStore {
         return this.state.edges;
     }
 
-    get seqMode(): SequenceMode {
-        return this.state.seqMode;
+    get showConnectionOrder(): boolean {
+        return this.state.showConnectionOrder;
     }
 
     get checks(): SessionChecks {
@@ -233,8 +231,12 @@ export class SessionStore {
         this.state.durationMinutes = minutes;
     }
 
-    setSequenceMode(mode: SequenceMode): void {
-        this.state.seqMode = mode;
+    /**
+     * Acender ou apagar os números é preferência gravada na sessão: suja o
+     * payload como qualquer outro campo, sem tocar no `order` das arestas.
+     */
+    setShowConnectionOrder(value: boolean): void {
+        this.state.showConnectionOrder = value;
     }
 
     /** Reaplica um payload inteiro — o rascunho local que venceu no boot. */
@@ -244,7 +246,7 @@ export class SessionStore {
         this.state.problemId = record.problemId;
         this.state.nodes = record.nodes;
         this.state.edges = record.edges;
-        this.state.seqMode = record.seqMode;
+        this.state.showConnectionOrder = record.showConnectionOrder;
         this.state.checks = record.checks;
         this.state.notes = record.notes;
         this.state.estimate = record.estimate;

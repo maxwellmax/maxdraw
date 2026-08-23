@@ -2,7 +2,7 @@
 import { useResizeObserver } from '@vueuse/core';
 import { computed, ref, watch } from 'vue';
 import type { LinkType } from '@/canvas/links';
-import type { SequenceNumber } from '@/canvas/sequence';
+import { clampOrderInput } from '@/canvas/order';
 import type { EdgeFlag, Point, Size } from '@/canvas/types';
 import { floatBarSpot } from '@/canvas/view';
 import LinkKindMenu from '@/components/prancheta/LinkKindMenu.vue';
@@ -17,9 +17,10 @@ const props = withDefaults(
         badge: string;
         dashed: boolean;
         bidir: boolean;
-        seq?: SequenceNumber | null;
+        numberedCount: number;
+        order?: number | null;
     }>(),
-    { seq: null },
+    { order: null },
 );
 
 const emit = defineEmits<{
@@ -27,7 +28,8 @@ const emit = defineEmits<{
     'edit-label': [];
     toggle: [flag: EdgeFlag];
     reverse: [];
-    'move-seq': [direction: number];
+    'set-order': [value: number];
+    'clear-order': [];
     remove: [];
 }>();
 
@@ -57,6 +59,27 @@ const style = computed(() => {
 function pickKind(kind: string | null): void {
     menuOpen.value = false;
     emit('pick-kind', kind);
+}
+
+/**
+ * O campo comita em `change`, Enter e ao sair — digitar não move nada, e cada
+ * commit vale um passo de desfazer. Quem decide o número é o motor: o campo só
+ * entrega o que foi digitado e reescreve a si mesmo com a resposta. Campo
+ * vazio não comita nada e volta ao número que a aresta já tinha (UI-03).
+ */
+function commitOrder(event: Event): void {
+    const field = event.target as HTMLInputElement;
+    const wanted = clampOrderInput(
+        field.value,
+        props.numberedCount,
+        props.order !== null,
+    );
+
+    field.value = String(wanted ?? props.order ?? '');
+
+    if (wanted !== null) {
+        emit('set-order', wanted);
+    }
 }
 </script>
 
@@ -182,58 +205,41 @@ function pickKind(kind: string | null): void {
             </svg>
         </button>
 
-        <template v-if="seq">
-            <span class="mx-[3px] h-4 w-px bg-sd-line"></span>
+        <span class="mx-[3px] h-4 w-px bg-sd-line"></span>
 
-            <button
-                type="button"
-                data-testid="edge-seq-back"
-                title="Antes na sequência de saída"
-                class="inline-flex h-[26px] min-w-[26px] cursor-pointer items-center justify-center rounded-[5px] px-[7px] text-sd-ink-2 hover:bg-sd-panel-2 hover:text-sd-ink disabled:cursor-default disabled:opacity-35 disabled:hover:bg-transparent disabled:hover:text-sd-ink-2 [&_svg]:size-3.5"
-                :disabled="seq.index <= 1"
-                @click="emit('move-seq', -1)"
-            >
-                <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2.1"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    aria-hidden="true"
-                >
-                    <path d="M14.5 5.5 8 12l6.5 6.5" />
-                </svg>
-            </button>
+        <input
+            type="number"
+            data-testid="edge-order-input"
+            title="Ordem desta conexão na sequência"
+            min="1"
+            :max="order === null ? numberedCount + 1 : numberedCount"
+            :value="order ?? ''"
+            class="h-[26px] w-[46px] rounded-[5px] border border-sd-line bg-sd-panel-2 px-[6px] text-center font-mono text-[11px] text-sd-ink tabular-nums"
+            @change="commitOrder"
+            @keyup.enter="commitOrder"
+            @blur="commitOrder"
+        />
 
-            <span
-                data-testid="edge-seq-position"
-                title="Ordem em que o bloco dispara esta saída"
-                class="min-w-[26px] px-px text-center font-mono text-[11px] text-sd-ink-3 tabular-nums"
-                >{{ seq.index }}/{{ seq.total }}</span
+        <button
+            type="button"
+            data-testid="edge-order-clear"
+            title="Remover da sequência"
+            class="inline-flex h-[26px] min-w-[26px] cursor-pointer items-center justify-center rounded-[5px] px-[7px] text-sd-ink-2 hover:bg-sd-panel-2 hover:text-sd-ink disabled:cursor-default disabled:opacity-35 disabled:hover:bg-transparent disabled:hover:text-sd-ink-2 [&_svg]:size-3.5"
+            :disabled="order === null"
+            @click="emit('clear-order')"
+        >
+            <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
             >
-
-            <button
-                type="button"
-                data-testid="edge-seq-forward"
-                title="Depois na sequência de saída"
-                class="inline-flex h-[26px] min-w-[26px] cursor-pointer items-center justify-center rounded-[5px] px-[7px] text-sd-ink-2 hover:bg-sd-panel-2 hover:text-sd-ink disabled:cursor-default disabled:opacity-35 disabled:hover:bg-transparent disabled:hover:text-sd-ink-2 [&_svg]:size-3.5"
-                :disabled="seq.index >= seq.total"
-                @click="emit('move-seq', 1)"
-            >
-                <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2.1"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    aria-hidden="true"
-                >
-                    <path d="M9.5 5.5 16 12l-6.5 6.5" />
-                </svg>
-            </button>
-        </template>
+                <path d="M5 6.5h6M5 12h6M5 17.5h6M15 9l6 6M21 9l-6 6" />
+            </svg>
+        </button>
 
         <span class="mx-[3px] h-4 w-px bg-sd-line"></span>
 
