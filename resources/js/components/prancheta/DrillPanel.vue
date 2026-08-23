@@ -35,14 +35,7 @@ defineEmits<{ 'update:modelValue': [value: DrillTabId] }>();
             <slot v-if="tab.id === 'roteiro'" name="roteiro" />
             <slot v-else-if="tab.id === 'enunciado'" name="enunciado" />
             <slot v-else-if="tab.id === 'calc'" name="calc" />
-            <slot v-else name="notas">
-                <textarea
-                    data-testid="notes"
-                    spellcheck="false"
-                    placeholder="API, modelo de dados, trade-offs, perguntas que você faria…"
-                    class="min-h-[340px] w-full resize-y rounded-sd border border-sd-line-2 bg-sd-panel-2 px-3 py-[11px] font-mono text-[12.5px] leading-[1.65] text-sd-ink focus:border-sd-accent focus:bg-sd-panel focus:outline-none"
-                ></textarea>
-            </slot>
+            <slot v-else name="notas" />
         </div>
     </aside>
 </template>

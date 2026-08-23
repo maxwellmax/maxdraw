@@ -18,6 +18,8 @@ import EdgeFloatBar from '@/components/prancheta/EdgeFloatBar.vue';
 import LegendContent from '@/components/prancheta/LegendContent.vue';
 import ModalSheet from '@/components/prancheta/ModalSheet.vue';
 import NarrowNotice from '@/components/prancheta/NarrowNotice.vue';
+import NotesPad from '@/components/prancheta/NotesPad.vue';
+import PhaseAccordion from '@/components/prancheta/PhaseAccordion.vue';
 import PranchetaButton from '@/components/prancheta/PranchetaButton.vue';
 import StageCanvas from '@/components/prancheta/StageCanvas.vue';
 import ToastHost from '@/components/prancheta/ToastHost.vue';
@@ -33,6 +35,8 @@ import {
     durationsFrom,
     phaseSegments,
 } from '@/prancheta/clock';
+import type { PhaseChoice } from '@/prancheta/roteiro';
+import { FOLLOW_CURRENT, phaseRows, toggleChoice } from '@/prancheta/roteiro';
 import type { SessionStore } from '@/prancheta/session';
 import type { DrillTabId } from '@/prancheta/tabs';
 import { DEFAULT_DRILL_TAB } from '@/prancheta/tabs';
@@ -72,6 +76,12 @@ const { autosave, saveNow } = useAutosave(store);
 const { clock } = useClock(store, autosave);
 
 const activeTab = ref<DrillTabId>(DEFAULT_DRILL_TAB);
+
+/**
+ * Qual fase o usuário abriu à mão. `FOLLOW_CURRENT` devolve o acordeão ao
+ * cronômetro, e é para lá que ele volta a cada virada de fase (US-6.2).
+ */
+const phaseChoice = ref<PhaseChoice>(FOLLOW_CURRENT);
 
 const openSheet = ref<'problem' | 'sessions' | null>(null);
 
@@ -206,6 +216,23 @@ const durations = computed(() =>
     durationsFrom(props.catalog.session_durations),
 );
 
+/**
+ * O acordeão do roteiro: as cinco fases com os itens do catálogo, o progresso
+ * de cada uma e os minutos que a duração escolhida reserva para ela (US-6.2).
+ */
+const roteiro = computed(() =>
+    phaseRows(
+        props.catalog.phases,
+        store.checks,
+        store.elapsedSeconds,
+        store.durationMinutes,
+        phaseChoice.value,
+    ),
+);
+
+/** A virada de fase desfaz a escolha manual e abre a fase que começou agora. */
+watch(phaseIndex, () => (phaseChoice.value = FOLLOW_CURRENT));
+
 const sheetTitle = computed(() =>
     openSheet.value === 'sessions' ? 'Sessões' : 'Escolher um problema',
 );
@@ -215,6 +242,19 @@ const sheetDescription = computed(() =>
         ? 'Abra uma sessão salva para restaurar o treino de onde parou.'
         : 'Cada um vem com enunciado, requisitos e a escala alvo. O cronômetro zera.',
 );
+
+function pickPhase(index: number): void {
+    phaseChoice.value = toggleChoice(
+        phaseChoice.value,
+        phaseIndex.value,
+        index,
+    );
+}
+
+/** Ausência é desmarcado, então alternar é sempre contra o que está gravado. */
+function toggleCheck(itemId: number): void {
+    store.setCheck(itemId, !store.checks[String(itemId)]);
+}
 
 function exportSvg(): void {
     if (engine.isEmpty) {
@@ -421,6 +461,22 @@ function placeNode(slug: string): void {
             </StageCanvas>
 
             <DrillPanel v-model="activeTab">
+                <template #roteiro>
+                    <PhaseAccordion
+                        :phases="roteiro"
+                        @toggle-phase="pickPhase"
+                        @toggle-item="toggleCheck"
+                    />
+                </template>
+
+                <template #notas>
+                    <NotesPad
+                        :model-value="store.notes"
+                        @update:model-value="store.setNotes($event)"
+                        @blocked="warn('notesLimitReached')"
+                    />
+                </template>
+
                 <template #clock>
                     <DrillClock
                         :elapsed-seconds="store.elapsedSeconds"

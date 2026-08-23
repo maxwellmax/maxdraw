@@ -1,5 +1,6 @@
-import type { PhaseOption, SessionDurationOption } from './clock';
+import type { SessionDurationOption } from './clock';
 import type { SessionStorage } from './resume';
+import type { RoteiroPhase } from './roteiro';
 import type { SessionRecord } from './session';
 
 /**
@@ -50,11 +51,13 @@ export function memoryStorage(): MemoryStorage {
 }
 
 /**
- * As cinco fases do roteiro como o catálogo as entrega. Os pesos são os do
- * `PhaseSeeder`, e `tests/Feature/Frontend/DrillClockTest.php` confere fixture
- * contra seeder — o cronômetro é testado contra o catálogo de verdade.
+ * As cinco fases do roteiro como o catálogo as entrega, com os 25 itens do
+ * checklist. Pesos, textos e ids são os do `PhaseSeeder` e do
+ * `ChecklistItemSeeder`, e `tests/Feature/Frontend/DrillClockTest.php` e
+ * `DrillRoteiroTest.php` conferem fixture contra seeder — o roteiro é testado
+ * contra o catálogo de verdade.
  */
-export function phaseOptionsFixture(): PhaseOption[] {
+export function phaseOptionsFixture(): RoteiroPhase[] {
     return [
         {
             id: 1,
@@ -62,6 +65,23 @@ export function phaseOptionsFixture(): PhaseOption[] {
             name: 'Requisitos & escopo',
             weight: 0.11,
             position: 1,
+            checklist_items: [
+                {
+                    id: 1,
+                    content:
+                        'Requisitos funcionais listados — o que o sistema FAZ',
+                },
+                { id: 2, content: 'Fora de escopo declarado em voz alta' },
+                {
+                    id: 3,
+                    content:
+                        'Não-funcionais: latência, disponibilidade, consistência',
+                },
+                {
+                    id: 4,
+                    content: 'Perfil de uso: leitura pesada ou escrita pesada?',
+                },
+            ],
         },
         {
             id: 2,
@@ -69,6 +89,23 @@ export function phaseOptionsFixture(): PhaseOption[] {
             name: 'Estimativas de capacidade',
             weight: 0.11,
             position: 2,
+            checklist_items: [
+                {
+                    id: 5,
+                    content: 'Usuários ativos por dia e ações por usuário',
+                },
+                { id: 6, content: 'QPS médio e QPS de pico' },
+                {
+                    id: 7,
+                    content: 'Armazenamento por dia, por ano e na retenção',
+                },
+                { id: 8, content: 'Banda de entrada e de saída' },
+                {
+                    id: 9,
+                    content:
+                        'Conclusão: o que essa escala obriga (cache? shard? CDN?)',
+                },
+            ],
         },
         {
             id: 3,
@@ -76,6 +113,19 @@ export function phaseOptionsFixture(): PhaseOption[] {
             name: 'API & modelo de dados',
             weight: 0.18,
             position: 3,
+            checklist_items: [
+                { id: 10, content: 'Endpoints principais com entrada e saída' },
+                { id: 11, content: 'Entidades e relacionamentos' },
+                {
+                    id: 12,
+                    content: 'Escolha do banco justificada, não presumida',
+                },
+                { id: 13, content: 'Chave de particionamento definida' },
+                {
+                    id: 14,
+                    content: 'Índices necessários para as consultas do produto',
+                },
+            ],
         },
         {
             id: 4,
@@ -83,6 +133,25 @@ export function phaseOptionsFixture(): PhaseOption[] {
             name: 'Desenho de alto nível',
             weight: 0.27,
             position: 4,
+            checklist_items: [
+                {
+                    id: 15,
+                    content: 'Caminho de ESCRITA desenhado ponta a ponta',
+                },
+                {
+                    id: 16,
+                    content: 'Caminho de LEITURA desenhado ponta a ponta',
+                },
+                {
+                    id: 17,
+                    content: 'Síncrono e assíncrono separados no desenho',
+                },
+                {
+                    id: 18,
+                    content: 'Onde entra cache e o que invalida cada entrada',
+                },
+                { id: 19, content: 'Fluxo narrado do clique até a resposta' },
+            ],
         },
         {
             id: 5,
@@ -90,6 +159,17 @@ export function phaseOptionsFixture(): PhaseOption[] {
             name: 'Escala & trade-offs',
             weight: 0.33,
             position: 5,
+            checklist_items: [
+                { id: 20, content: 'Gargalo principal nomeado' },
+                { id: 21, content: 'Estratégia de sharding e de replicação' },
+                { id: 22, content: 'Nenhum ponto único de falha sobrou' },
+                {
+                    id: 23,
+                    content: 'Consistência forte ou eventual — e o porquê',
+                },
+                { id: 24, content: 'Retry, idempotência e backpressure' },
+                { id: 25, content: 'O que você mediria em produção' },
+            ],
         },
     ];
 }

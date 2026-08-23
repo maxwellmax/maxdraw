@@ -2,7 +2,8 @@ import type { CatalogCategory } from '@/canvas/catalog';
 import type { LinkType } from '@/canvas/links';
 import type { SequenceModeOption } from '@/canvas/sequence';
 import type { Edge, Node } from '@/canvas/types';
-import type { PhaseOption, SessionDurationOption } from '@/prancheta/clock';
+import type { SessionDurationOption } from '@/prancheta/clock';
+import type { RoteiroPhase } from '@/prancheta/roteiro';
 
 /**
  * A sessão como o `TrainingSessionResource` a entrega. Os nomes são os do
@@ -32,7 +33,7 @@ export type BoardCatalog = {
     problems: unknown[];
     component_categories: CatalogCategory[];
     link_types: LinkType[];
-    phases: PhaseOption[];
+    phases: RoteiroPhase[];
     sequence_modes: SequenceModeOption[];
     session_durations: SessionDurationOption[];
     estimate_modes: unknown[];

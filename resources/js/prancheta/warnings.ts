@@ -7,6 +7,8 @@ export const BOARD_WARNINGS = {
         'Limite de 200 blocos atingido. Apague algum antes de colocar outro.',
     edgeLimitReached:
         'Limite de 400 setas atingido. Apague alguma antes de ligar outra.',
+    notesLimitReached:
+        'As notas da sessão têm no máximo 5.000 caracteres — o que passou disso não entrou.',
     exportEmptyCanvas: 'Canvas vazio — não há nada para exportar.',
     serverVersionIsNewer:
         'A versão salva no servidor é mais nova que a desta aba. Recarregue antes de salvar.',

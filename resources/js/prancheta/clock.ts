@@ -141,12 +141,24 @@ export function phaseSegments(
 
     return phases.map((phase, index) => ({
         weight: phase.weight,
-        state: stateOf(index, current),
+        state: phaseStateOf(index, current),
         progress:
             index === current
                 ? phaseProgress(elapsedSeconds, slices, index)
                 : 0,
     }));
+}
+
+/**
+ * O estado de uma fase diante da corrente. Mora aqui porque é o cronômetro que
+ * o decide, e tanto a barra quanto o acordeão do roteiro o mostram.
+ */
+export function phaseStateOf(index: number, current: number): PhaseState {
+    if (index < current) {
+        return 'done';
+    }
+
+    return index === current ? 'current' : 'todo';
 }
 
 export function isFinished(
@@ -317,14 +329,6 @@ export class SessionClock {
 
         this.timer = null;
     }
-}
-
-function stateOf(index: number, current: number): PhaseState {
-    if (index < current) {
-        return 'done';
-    }
-
-    return index === current ? 'current' : 'todo';
 }
 
 function clamp(value: number, min: number, max: number): number {

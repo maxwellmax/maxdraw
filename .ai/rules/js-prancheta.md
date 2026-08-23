@@ -18,3 +18,12 @@ O envio vai pelo cliente HTTP do Inertia (`http.getClient()` em lib/sessionTrans
 `SessionClock` nasce sempre pausado (o servidor guarda `elapsed_seconds`, nunca "rodando") e para sozinho quando o restante zera — `start()` recusa com o tempo esgotado, e só zerar ou esticar a duração reabre. Trocar a duração nunca toca no decorrido.
 
 A gravação periódica (`CLOCK_PERSIST_MS`, 20 s) é `autosave.saveLocal()`, não envio: quem sobe ao servidor continua sendo o debounce da Phase 10, segurado pelo teto de 15 s — sem ele, o tique de 1 s reiniciaria a inércia para sempre.
+
+## Roteiro: marcação por id do item, acordeão derivado do cronômetro
+`prancheta/roteiro.ts` é o arranjo do checklist: `phaseRows()` deriva tudo (minutos da fatia, estado da fase, progresso marcados/total) das mesmas `bounds()`/`curPhase()` do cronômetro — não há segunda aritmética de tempo nem lista de itens no cliente; fases e os 25 itens vêm de `catalog.phases[].checklist_items`.
+
+`checks` é mapa de `checklist_items.id` → `true`, e ausência é desmarcado (`isChecked`): a chave nunca é a posição (`"1:3"` do protótipo é recusada com 422 pela `TrainingSessionUpdateRequest`), e é isso que faz um item novo no meio da fase não deslocar marcação já gravada.
+
+Qual fase está aberta é preferência de tela, não payload: o `Board.vue` guarda `phaseChoice` (`FOLLOW_CURRENT` = segue o relógio, `ALL_COLLAPSED` = nenhuma) e um `watch(phaseIndex)` a zera na virada — a escolha manual prevalece só até a próxima fase começar.
+
+Notas: `NOTES_MAX_LENGTH` (notes.ts) espelha o `MAX_NOTES` privado da FormRequest e `DrillRoteiroTest` compara os dois. O `NotesPad` não usa `maxlength`: `acceptNotes()` devolve `blocked` para o Board avisar por toast — cortar em silêncio é o que a US-6.3 proíbe.
