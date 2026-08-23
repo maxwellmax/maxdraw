@@ -309,6 +309,20 @@ function pranchetaFiles(): array
     return array_map('basename', glob(dirname(__DIR__).'/resources/js/prancheta/*.ts'));
 }
 
+/**
+ * Toda rota de sessão, com o verbo que ela aceita e se o caminho carrega uma
+ * sessão. É a lista que o teste de isolamento entre usuários percorre: rota
+ * nova aqui é rota nova lá, sem depender de ninguém lembrar (US-1.4).
+ */
+dataset('sessionRoutes', [
+    'listagem' => ['GET', 'sessions.index', false],
+    'criação' => ['POST', 'sessions.store', false],
+    'leitura' => ['GET', 'sessions.show', true],
+    'abertura' => ['POST', 'sessions.open', true],
+    'escrita' => ['PUT', 'sessions.update', true],
+    'exclusão' => ['DELETE', 'sessions.destroy', true],
+]);
+
 dataset('lookupModels', [
     'problem_levels' => [ProblemLevel::class],
     'problem_item_types' => [ProblemItemType::class],

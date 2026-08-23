@@ -1,17 +1,29 @@
 name: tests
 
+# A cadeia inteira roda a cada push, em qualquer branch, e em cada pull request
+# (inclusive de fork). O grupo de concorrencia cancela a execucao anterior do
+# mesmo ref, para o push em cima de um PR nao pagar a corrida duas vezes.
 on:
   push:
-    branches:
-      - main
   pull_request:
 
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   ci:
     runs-on: ubuntu-latest
+
+    # O runner nao sobe MySQL: a cadeia de qualidade roda sobre SQLite, e o
+    # `phpunit.xml` ja forca `:memory:` na suite. Variavel de ambiente real tem
+    # precedencia sobre o `.env` que o `composer setup` copia do exemplo.
+    env:
+      DB_CONNECTION: sqlite
+      DB_DATABASE: database/database.sqlite
 
     steps:
       - name: Checkout code
@@ -31,8 +43,14 @@ jobs:
         with:
           node-version: '22'
 
+      - name: Create the database file
+        run: touch database/database.sqlite
+
       - name: Setup Application
         run: composer setup
+
+      - name: Migrate from scratch
+        run: php artisan migrate:fresh --seed --force
 
       - name: Run CI Checks
         run: composer ci:check
