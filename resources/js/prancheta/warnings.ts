@@ -12,6 +12,12 @@ export const BOARD_WARNINGS = {
     exportEmptyCanvas: 'Canvas vazio — não há nada para exportar.',
     serverVersionIsNewer:
         'A versão salva no servidor é mais nova que a desta aba. Recarregue antes de salvar.',
+    sessionListFailed:
+        'Não foi possível carregar suas sessões. Tente abrir a folha de novo.',
+    sessionSwitchFailed:
+        'Não foi possível trocar de sessão. O treino desta prancheta continua aqui.',
+    sessionDeleteFailed:
+        'Não foi possível excluir a sessão. Tente de novo em instantes.',
 } as const;
 
 export type BoardWarning = keyof typeof BOARD_WARNINGS;

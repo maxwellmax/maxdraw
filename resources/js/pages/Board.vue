@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head } from '@inertiajs/vue3';
+import { Head, router } from '@inertiajs/vue3';
 import type { ComponentPublicInstance } from 'vue';
 import {
     computed,
@@ -32,6 +32,7 @@ import PhaseAccordion from '@/components/prancheta/PhaseAccordion.vue';
 import PranchetaButton from '@/components/prancheta/PranchetaButton.vue';
 import ProblemBrief from '@/components/prancheta/ProblemBrief.vue';
 import ProblemPicker from '@/components/prancheta/ProblemPicker.vue';
+import SessionList from '@/components/prancheta/SessionList.vue';
 import StageCanvas from '@/components/prancheta/StageCanvas.vue';
 import ToastHost from '@/components/prancheta/ToastHost.vue';
 import { createSessionStore, useAutosave } from '@/composables/useAutosave';
@@ -41,6 +42,12 @@ import { useStageInteraction } from '@/composables/useStageInteraction';
 import { useTheme } from '@/composables/useTheme';
 import { useToast } from '@/composables/useToast';
 import { downloadFile } from '@/lib/downloadFile';
+import {
+    createSession,
+    deleteSession,
+    fetchSessions,
+    openSession,
+} from '@/lib/sessionTransport';
 import {
     bounds,
     curPhase,
@@ -57,8 +64,15 @@ import {
 import type { PhaseChoice } from '@/prancheta/roteiro';
 import { FOLLOW_CURRENT, phaseRows, toggleChoice } from '@/prancheta/roteiro';
 import type { SessionStore } from '@/prancheta/session';
+import type { SessionSummary } from '@/prancheta/sessions';
+import {
+    deleteIntent,
+    sessionCountLabel,
+    sessionRows,
+} from '@/prancheta/sessions';
 import type { DrillTabId } from '@/prancheta/tabs';
 import { DEFAULT_DRILL_TAB } from '@/prancheta/tabs';
+import { board } from '@/routes';
 import type { BoardCatalog, SessionPayload } from '@/types';
 
 const props = defineProps<{
@@ -103,6 +117,15 @@ const activeTab = ref<DrillTabId>(DEFAULT_DRILL_TAB);
 const phaseChoice = ref<PhaseChoice>(FOLLOW_CURRENT);
 
 const openSheet = ref<'problem' | 'sessions' | null>(null);
+
+/** As sessões salvas do usuário, como a folha as recebeu do servidor. */
+const savedSessions = ref<SessionSummary[]>([]);
+
+/** A sessão cuja exclusão já foi armada por um primeiro clique. */
+const armedDeletion = ref<number | null>(null);
+
+/** Uma troca de sessão em curso — a segunda não pode atropelar a primeira. */
+const switchingSession = ref(false);
 
 /**
  * O enunciado da sessão. Nenhum texto de problema mora na página: o que a
@@ -290,9 +313,126 @@ const sheetTitle = computed(() =>
 
 const sheetDescription = computed(() =>
     openSheet.value === 'sessions'
-        ? 'Abra uma sessão salva para restaurar o treino de onde parou.'
+        ? sessionCountLabel(savedSessions.value.length)
         : 'Cada um vem com enunciado, requisitos e a escala alvo. O treino corrente continua de onde está.',
 );
+
+/**
+ * A folha de sessões: data, problema, duração escolhida e tempo usado de cada
+ * treino salvo, da mais recente para a mais antiga, com a corrente marcada
+ * (US-11.1). Nenhum desses rótulos é montado aqui.
+ */
+const sessionList = computed(() =>
+    sessionRows(savedSessions.value, props.catalog.problems, store.id),
+);
+
+/** A folha abre já com a lista do servidor e sem nenhuma exclusão armada. */
+async function openSessions(): Promise<void> {
+    openSheet.value = 'sessions';
+    armedDeletion.value = null;
+
+    await loadSessions();
+}
+
+async function loadSessions(): Promise<void> {
+    try {
+        savedSessions.value = await fetchSessions();
+    } catch {
+        warn('sessionListFailed');
+    }
+}
+
+/**
+ * Trocar de sessão grava a corrente antes de sair: o autosave sobe o que ainda
+ * não subiu, e só então a outra é promovida (US-11.1). A prancheta recarrega
+ * desmontada porque a sessão corrente muda de id — store, motor e autosave
+ * precisam nascer de novo com ela, pelo mesmo caminho do boot.
+ */
+async function switchToSession(sessionId: number): Promise<void> {
+    await switching(async () => {
+        await saveNow();
+        await openSession(sessionId);
+    });
+}
+
+/**
+ * Sessão nova: grava a corrente, cria a vazia e recarrega. Ela nasce sem
+ * problema e sem blocos, então o seletor de problemas abre sozinho no boot
+ * seguinte, e as anteriores continuam intactas no servidor (US-11.2).
+ */
+async function startNewSession(): Promise<void> {
+    await switching(async () => {
+        await saveNow();
+        await createSession();
+    });
+}
+
+async function switching(change: () => Promise<void>): Promise<void> {
+    if (switchingSession.value) {
+        return;
+    }
+
+    switchingSession.value = true;
+
+    try {
+        await change();
+    } catch {
+        switchingSession.value = false;
+        warn('sessionSwitchFailed');
+
+        return;
+    }
+
+    reloadBoard();
+}
+
+function reloadBoard(): void {
+    openSheet.value = null;
+
+    router.visit(board.url(), { preserveState: false, preserveScroll: true });
+}
+
+/**
+ * A exclusão pede confirmação explícita antes de qualquer requisição: o
+ * primeiro clique arma o pedido e o segundo, no mesmo botão, o executa
+ * (US-11.3).
+ */
+function askToDelete(sessionId: number): void {
+    const intent = deleteIntent(armedDeletion.value, sessionId);
+
+    if (intent.action === 'arm') {
+        armedDeletion.value = intent.id;
+
+        return;
+    }
+
+    armedDeletion.value = null;
+
+    void removeSession(intent.id);
+}
+
+/**
+ * Excluir a corrente recarrega a prancheta: o servidor promove a mais recente
+ * restante, ou cria uma vazia quando não sobrou nenhuma — o treino nunca fica
+ * sem sessão corrente.
+ */
+async function removeSession(sessionId: number): Promise<void> {
+    try {
+        await deleteSession(sessionId);
+    } catch {
+        warn('sessionDeleteFailed');
+
+        return;
+    }
+
+    if (sessionId === store.id) {
+        reloadBoard();
+
+        return;
+    }
+
+    await loadSessions();
+}
 
 /** Escolher o problema grava-o na sessão corrente e fecha a folha (US-2.1). */
 function pickProblem(problemId: number | null): void {
@@ -428,7 +568,7 @@ function placeNode(slug: string): void {
                 :save-label="autosave.label ?? undefined"
                 :problem-name="problem?.name ?? null"
                 @pick-problem="openSheet = 'problem'"
-                @open-sessions="openSheet = 'sessions'"
+                @open-sessions="openSessions"
                 @toggle-theme="toggleTheme"
                 @export-svg="exportSvg"
                 @save="saveNow"
@@ -601,6 +741,16 @@ function placeNode(slug: string): void {
         >
             <template #actions>
                 <PranchetaButton
+                    v-if="openSheet === 'sessions'"
+                    data-testid="new-session"
+                    variant="primary"
+                    :disabled="switchingSession"
+                    @click="startNewSession"
+                >
+                    Nova sessão
+                </PranchetaButton>
+
+                <PranchetaButton
                     data-testid="sheet-close"
                     @click="openSheet = null"
                 >
@@ -615,9 +765,13 @@ function placeNode(slug: string): void {
                 @pick="pickProblem"
             />
 
-            <p v-else class="m-0 p-2 text-[12.5px] text-sd-ink-3">
-                Nenhuma sessão carregada nesta prancheta.
-            </p>
+            <SessionList
+                v-else-if="openSheet === 'sessions'"
+                :rows="sessionList"
+                :armed="armedDeletion"
+                @open="switchToSession"
+                @remove="askToDelete"
+            />
 
             <template v-if="openSheet === 'problem'" #footer>
                 <span class="flex-1 text-[11.5px] text-sd-ink-3">

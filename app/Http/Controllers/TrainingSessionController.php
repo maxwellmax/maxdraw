@@ -21,6 +21,10 @@ class TrainingSessionController extends Controller
     /**
      * List the training sessions of the authenticated user.
      *
+     * Da mais recente para a mais antiga, com o mesmo desempate por id que o
+     * `CurrentSessionResolver` usa — a primeira linha da folha é sempre a
+     * sessão corrente (US-11.1).
+     *
      * A rota resolve `{trainingSession}` já escopada ao dono (ver
      * `AppServiceProvider`); a `TrainingSessionPolicy` chamada aqui é a segunda
      * tranca do isolamento (US-1.4).
@@ -35,6 +39,7 @@ class TrainingSessionController extends Controller
             TrainingSession::ownedBy($request->user())
                 ->with(['sessionDuration', 'sequenceMode'])
                 ->orderByDesc('last_opened_at')
+                ->orderByDesc('id')
                 ->get()
         );
     }

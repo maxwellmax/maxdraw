@@ -10,7 +10,7 @@ import type { SessionPayload } from '@/types';
 
 export type UseAutosaveReturn = {
     autosave: Autosave;
-    saveNow: () => void;
+    saveNow: () => Promise<void>;
 };
 
 /**
@@ -93,5 +93,5 @@ export function useAutosave(
         autosave.stop();
     });
 
-    return { autosave, saveNow: () => void autosave.save() };
+    return { autosave, saveNow: () => autosave.save() };
 }

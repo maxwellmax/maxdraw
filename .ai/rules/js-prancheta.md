@@ -43,3 +43,12 @@ Nenhum modo mora no cliente: `estimate_modes` traz nome e `highlighted_row`, e o
 Toda entrada passa por `sanitize()` (negativo → 0, não-finito → 0) antes da conta, e `formatNumber`/`formatBytes` devolvem `—` para não-finito: `NaN` e `Infinity` nunca chegam à tela.
 
 `EstimateField.vue` não usa `v-model`. Ele guarda o texto digitado em `draft` e só o reescreve quando `keepsDraft()` diz que deixou de representar o valor gravado — sem reescrever o campo, recalcular a cada tecla não mexe no foco nem no cursor ("1." continua "1." enquanto a saída já conta com 1). O protótipo resolvia isso re-renderizando e restaurando `selectionStart` à mão; aqui a solução é não tocar no campo.
+
+## Folha de sessões: trocar de sessão remonta a página, e excluir é confirmado antes de qualquer requisição
+`prancheta/sessions.ts` é só o arranjo da lista (data, problema, duração, tempo usado, qual é a corrente) e a regra da confirmação; requisição nenhuma mora lá. Quem fala com o servidor é `lib/sessionTransport.ts` (`fetchSessions`/`openSession`/`createSession`/`deleteSession`, pelo mesmo `http.getClient()` do autosave, com as rotas do Wayfinder).
+
+Trocar de sessão troca o id da corrente, então store, motor e autosave precisam nascer de novo: `Board.vue` chama `router.visit(board.url(), { preserveState: false })`. `router.reload()` NÃO serve — o core força `preserveState: true` por dentro, a `key` da página não muda e o `setup` não roda de novo. A restauração do estado sai de graça: é o mesmo caminho do boot, e a sessão nova (sem problema e sem blocos) faz o seletor de problemas abrir sozinho por `opensPickerOnLoad`.
+
+Antes de trocar ou criar, `await saveNow()` — por isso `useAutosave` devolve `saveNow: () => Promise<void>`, não `void`. Exclusão é em dois cliques (`deleteIntent`: `arm` → `delete`); nenhuma requisição sai no primeiro. Excluir a corrente só recarrega: o servidor já promove a mais recente restante, ou cria uma vazia.
+
+`formatSessionDate` escreve o mês abreviado à mão em vez de usar `Intl` — o formato não pode depender da tabela de locales que o runtime carregou.

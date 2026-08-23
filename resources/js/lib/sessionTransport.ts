@@ -1,8 +1,15 @@
 import { http } from '@inertiajs/vue3';
-import { update } from '@/actions/App/Http/Controllers/TrainingSessionController';
+import {
+    destroy,
+    index,
+    open,
+    store,
+    update,
+} from '@/actions/App/Http/Controllers/TrainingSessionController';
 import type { SessionAck } from '@/prancheta/autosave';
 import { SaveRejected } from '@/prancheta/autosave';
 import type { SessionBody } from '@/prancheta/session';
+import type { SessionSummary } from '@/prancheta/sessions';
 
 /**
  * O envio do autosave. Vai pelo cliente HTTP do Inertia de propósito: é ele
@@ -62,4 +69,45 @@ function rejectionFrom(error: unknown): SaveRejected {
             ? retryAfter * 1000
             : null,
     );
+}
+
+/**
+ * A lista de sessões do usuário autenticado, da mais recente para a mais
+ * antiga — o servidor escopa ao dono e ordena (US-11.1).
+ */
+export async function fetchSessions(): Promise<SessionSummary[]> {
+    const body = await requestSession('get', index.url());
+
+    return (JSON.parse(body) as { data?: SessionSummary[] }).data ?? [];
+}
+
+/**
+ * Abre uma sessão salva: ela passa a ser a corrente. Quem restaura o estado é
+ * o recarregamento da prancheta, pelo mesmo caminho do boot.
+ */
+export async function openSession(id: number): Promise<void> {
+    await requestSession('post', open.url(id));
+}
+
+/** Cria a sessão vazia que passa a ser a corrente (US-11.2). */
+export async function createSession(): Promise<void> {
+    await requestSession('post', store.url());
+}
+
+/** Exclui a sessão e todo o conteúdo dela (US-11.3). */
+export async function deleteSession(id: number): Promise<void> {
+    await requestSession('delete', destroy.url(id));
+}
+
+async function requestSession(
+    method: 'get' | 'post' | 'delete',
+    url: string,
+): Promise<string> {
+    const response = await http.getClient().request({
+        method,
+        url,
+        headers: { Accept: 'application/json' },
+    });
+
+    return response.data;
 }

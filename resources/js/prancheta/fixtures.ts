@@ -4,6 +4,7 @@ import type { ProblemOption } from './problems';
 import type { SessionStorage } from './resume';
 import type { RoteiroPhase } from './roteiro';
 import type { SessionRecord } from './session';
+import type { SessionSummary } from './sessions';
 
 /**
  * Uma sessão como o servidor a entrega logo depois de criada, no formato do
@@ -319,6 +320,42 @@ export function estimateModeOptionsFixture(): EstimateModeOption[] {
             slug: 'month',
             name: 'Por volume mensal',
             highlighted_row: 'Escritas por mês',
+        },
+    ];
+}
+
+/**
+ * Três sessões salvas como a listagem as entrega, fora de ordem de propósito:
+ * a folha ordena da mais recente para a mais antiga por conta própria.
+ */
+export function sessionSummariesFixture(): SessionSummary[] {
+    return [
+        {
+            id: 7,
+            problem_id: null,
+            duration_minutes: 45,
+            elapsed_seconds: 0,
+            nodes: [],
+            last_opened_at: '2026-03-11T12:00:00.000000Z',
+        },
+        {
+            id: 9,
+            problem_id: 2,
+            duration_minutes: 60,
+            elapsed_seconds: 742,
+            nodes: [
+                { id: 'n1', type: 'api', label: 'API REST', x: 320, y: 180 },
+                { id: 'n2', type: 'sql', label: 'Banco', x: 520, y: 180 },
+            ],
+            last_opened_at: '2026-03-14T12:00:00.000000Z',
+        },
+        {
+            id: 4,
+            problem_id: 1,
+            duration_minutes: 30,
+            elapsed_seconds: 3605,
+            nodes: [{ id: 'n1', type: 'api', label: 'API', x: 10, y: 10 }],
+            last_opened_at: '2026-02-28T12:00:00.000000Z',
         },
     ];
 }
