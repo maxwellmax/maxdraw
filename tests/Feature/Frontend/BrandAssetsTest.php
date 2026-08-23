@@ -59,3 +59,27 @@ it('mantém as três tags do documento apontando para os mesmos caminhos', funct
     '<link rel="icon" href="/favicon.svg" type="image/svg+xml">',
     '<link rel="apple-touch-icon" href="/apple-touch-icon.png">',
 ]);
+
+it('nomeia a aplicação como maxdraw', function () {
+    expect(config('app.name'))->toBe('maxdraw');
+});
+
+it('não deixa o nome do skeleton sobrar como fallback', function (string $file, string $fallback) {
+    expect(file_get_contents(base_path($file)))
+        ->toContain($fallback)
+        ->not->toContain('Laravel');
+})->with([
+    'nome da aplicação' => ['.env.example', 'APP_NAME="maxdraw"'],
+    'título do documento' => ['resources/views/app.blade.php', "config('app.name', 'maxdraw')"],
+    'título das páginas Inertia' => ['resources/js/app.ts', "import.meta.env.VITE_APP_NAME || 'maxdraw'"],
+]);
+
+it('aponta a navegação para o repositório do projeto, não para o do skeleton', function (string $component) {
+    expect(file_get_contents(resource_path("js/components/{$component}.vue")))
+        ->toContain('https://github.com/maxwellmax/maxdraw')
+        ->not->toContain('laravel/vue-starter-kit')
+        ->not->toContain('laravel.com/docs');
+})->with([
+    'cabeçalho' => ['AppHeader'],
+    'barra lateral' => ['AppSidebar'],
+]);
