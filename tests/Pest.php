@@ -252,23 +252,39 @@ function canvasIconKeys(): array
 }
 
 /**
- * Os nomes dos testes do motor do canvas, lidos dos arquivos do Vitest. O gate
- * da fase roda `php artisan test`, então é daqui que a suíte PHP enxerga o que
- * a suíte do motor cobre.
+ * Os nomes dos testes de um pacote do frontend, lidos dos arquivos do Vitest.
+ * O gate da fase roda `php artisan test`, então é daqui que a suíte PHP
+ * enxerga o que a suíte do cliente cobre.
  *
  * @return array<int, string>
  */
-function canvasTestNames(): array
+function frontendTestNames(string $directory): array
 {
     $names = [];
 
-    foreach (glob(resource_path('js/canvas/*.test.ts')) as $file) {
+    foreach (glob(resource_path('js/'.$directory.'/*.test.ts')) as $file) {
         preg_match_all("/\bit\('([^']+)'/", (string) file_get_contents($file), $matches);
 
         $names = [...$names, ...$matches[1]];
     }
 
     return $names;
+}
+
+/**
+ * @return array<int, string>
+ */
+function canvasTestNames(): array
+{
+    return frontendTestNames('canvas');
+}
+
+/**
+ * @return array<int, string>
+ */
+function pranchetaTestNames(): array
+{
+    return frontendTestNames('prancheta');
 }
 
 /**
@@ -280,6 +296,17 @@ function canvasTestNames(): array
 function canvasFiles(): array
 {
     return array_map('basename', glob(dirname(__DIR__).'/resources/js/canvas/*.ts'));
+}
+
+/**
+ * Os arquivos do pacote da prancheta, pelo nome. Resolvido sem
+ * `resource_path()` pelo mesmo motivo que `canvasFiles()`.
+ *
+ * @return array<int, string>
+ */
+function pranchetaFiles(): array
+{
+    return array_map('basename', glob(dirname(__DIR__).'/resources/js/prancheta/*.ts'));
 }
 
 dataset('lookupModels', [

@@ -7,8 +7,9 @@ withDefaults(
     defineProps<{
         problemName?: string | null;
         saveState?: ChipState;
+        saveLabel?: string;
     }>(),
-    { problemName: null, saveState: 'saved' },
+    { problemName: null, saveState: 'saved', saveLabel: undefined },
 );
 
 defineEmits<{
@@ -90,7 +91,11 @@ defineEmits<{
 
         <div data-testid="topbar-spacer" class="flex-1"></div>
 
-        <StateChip data-testid="save-chip" :state="saveState" />
+        <StateChip
+            data-testid="save-chip"
+            :state="saveState"
+            :label="saveLabel"
+        />
 
         <PranchetaButton
             data-testid="theme-button"

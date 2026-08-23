@@ -16,11 +16,12 @@ import ModalSheet from '@/components/prancheta/ModalSheet.vue';
 import NarrowNotice from '@/components/prancheta/NarrowNotice.vue';
 import PranchetaButton from '@/components/prancheta/PranchetaButton.vue';
 import StageCanvas from '@/components/prancheta/StageCanvas.vue';
-import type { ChipState } from '@/components/prancheta/StateChip.vue';
 import ToastHost from '@/components/prancheta/ToastHost.vue';
+import { createSessionStore, useAutosave } from '@/composables/useAutosave';
 import { useStageInteraction } from '@/composables/useStageInteraction';
 import { useTheme } from '@/composables/useTheme';
 import { useToast } from '@/composables/useToast';
+import type { SessionStore } from '@/prancheta/session';
 import type { DrillTabId } from '@/prancheta/tabs';
 import { DEFAULT_DRILL_TAB } from '@/prancheta/tabs';
 import type { BoardCatalog, SessionPayload } from '@/types';
@@ -34,28 +35,24 @@ const { toggle: toggleTheme } = useTheme();
 const { warn } = useToast();
 
 /**
- * O motor governa o diagrama; `reactive` só o liga ao ciclo de renderização do
- * Vue. Nenhuma regra de canvas mora nesta página.
+ * O store é a fonte única do que é persistido, e o motor governa o diagrama
+ * dentro dele: os dois trabalham sobre o mesmo objeto de estado, então
+ * desenhar já suja a sessão. Nenhuma regra de canvas nem payload de autosave
+ * mora nesta página.
  *
- * O diagrama entra copiado: as props da página são a resposta do servidor, e
- * desenhar não pode reescrever aquilo que o Inertia guarda no histórico.
+ * O estado entra copiado da resposta do servidor: desenhar não pode reescrever
+ * aquilo que o Inertia guarda no histórico.
  */
+const store = reactive(createSessionStore(props.session)) as SessionStore;
+
 const engine = reactive(
-    new CanvasEngine(
-        {
-            nodes: (props.session.nodes ?? []).map((node) => ({ ...node })),
-            edges: (props.session.edges ?? []).map((edge) => ({ ...edge })),
-            seqMode: sequenceModeOf(props.session.seq_mode),
-        },
-        props.catalog.component_categories,
-    ),
+    new CanvasEngine(store.state, props.catalog.component_categories),
 ) as CanvasEngine;
 
-const activeTab = ref<DrillTabId>(DEFAULT_DRILL_TAB);
-const saveState = ref<ChipState>('saved');
+const { autosave, saveNow } = useAutosave(store);
 
-const elapsedSeconds = ref(props.session.elapsed_seconds);
-const durationMinutes = ref(props.session.duration_minutes);
+const activeTab = ref<DrillTabId>(DEFAULT_DRILL_TAB);
+
 const running = ref(false);
 
 const openSheet = ref<'problem' | 'sessions' | null>(null);
@@ -122,19 +119,18 @@ watch(running, (isRunning) => {
     stopTicker();
 
     if (isRunning) {
-        ticker = setInterval(() => elapsedSeconds.value++, 1000);
+        ticker = setInterval(
+            () => store.setElapsedSeconds(store.elapsedSeconds + 1),
+            1000,
+        );
     }
 });
 
 onBeforeUnmount(stopTicker);
 
-function sequenceModeOf(mode: string): SequenceMode {
-    return mode === 'off' || mode === 'flow' ? mode : 'out';
-}
-
 function resetClock(): void {
     running.value = false;
-    elapsedSeconds.value = 0;
+    store.setElapsedSeconds(0);
 }
 
 function exportSvg(): void {
@@ -204,12 +200,13 @@ function cycleSequenceMode(): void {
             class="grid h-dvh grid-cols-[216px_1fr_348px] grid-rows-[48px_1fr] overflow-hidden max-[1080px]:grid-cols-[186px_1fr_300px] max-[860px]:hidden"
         >
             <BoardTopBar
-                :save-state="saveState"
+                :save-state="autosave.chip"
+                :save-label="autosave.label ?? undefined"
                 @pick-problem="openSheet = 'problem'"
                 @open-sessions="openSheet = 'sessions'"
                 @toggle-theme="toggleTheme"
                 @export-svg="exportSvg"
-                @save="saveState = 'saved'"
+                @save="saveNow"
             />
 
             <ComponentRail>
@@ -262,12 +259,12 @@ function cycleSequenceMode(): void {
             <DrillPanel v-model="activeTab">
                 <template #clock>
                     <DrillClock
-                        :elapsed-seconds="elapsedSeconds"
-                        :duration-minutes="durationMinutes"
+                        :elapsed-seconds="store.elapsedSeconds"
+                        :duration-minutes="store.durationMinutes"
                         :running="running"
                         @toggle="running = !running"
                         @reset="resetClock"
-                        @select-duration="durationMinutes = $event"
+                        @select-duration="store.setDurationMinutes($event)"
                     />
                 </template>
             </DrillPanel>

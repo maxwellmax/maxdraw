@@ -12,6 +12,7 @@ Before planning or editing, find the row whose globs match the file's path and r
 | resources/css/** | .ai/rules/css.md |
 | tests/Feature/** | .ai/rules/feature.md |
 | package.json | .ai/rules/general.md |
+| resources/js/prancheta/** | .ai/rules/js-prancheta.md |
 | resources/js/components/prancheta/** | .ai/rules/prancheta.md |
 | app/Http/Requests/** | .ai/rules/requests.md |
 | app/Http/Resources/** | .ai/rules/resources.md |
