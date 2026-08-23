@@ -30,7 +30,12 @@ yarn-error.log
 /.vscode
 /.zed
 
-# A spec do projeto e versionada. Esta maquina tem `.spec/` no core.excludesFile
-# global (/root/.config/git/ignore); a negacao aqui tem precedencia sobre ele e
-# garante que quem clona o repo receba .spec/ junto.
+# A spec do projeto e a arvore de contexto de agentes sao versionadas. Esta
+# maquina tem `.spec/`, `docs/agents/` e `AGENTS.md` no core.excludesFile global
+# (/root/.config/git/ignore); as negacoes aqui tem precedencia sobre ele e
+# garantem que quem clona o repo receba os tres junto. `docs/agents/` e um dos
+# sete diretorios varridos por tests/Feature/OrderContractTest.php: fora do git,
+# o CI quebra com DirectoryNotFoundException.
 !.spec/
+!docs/agents/
+!AGENTS.md
