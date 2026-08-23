@@ -1,0 +1,31 @@
+name: dependency review
+
+# Roda so em pull request porque o que a acao compara e o delta: ela olha as
+# dependencias que ESTE PR adiciona ou sobe de versao, nao o estado geral do
+# lockfile. O estado geral e trabalho do `composer audit` / `npm audit` dentro
+# do `ci`, e dos alertas do Dependabot.
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  dependency-review:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # `moderate` aqui e mais rigoroso do que o `high` do npm audit de proposito:
+      # como so pega dependencia nova, o volume e baixo e falso positivo nao fica
+      # travando PR alheio. PR de fork recebe token somente-leitura, entao o
+      # resumo fica no log do job — comentar no PR falharia.
+      - name: Review dependencies
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: moderate
+          comment-summary-in-pr: never
