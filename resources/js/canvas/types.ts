@@ -36,11 +36,16 @@ export type SequenceMode = 'off' | 'out' | 'flow';
  * O estado da sessão que o motor governa. Notas, checklist, estimativa e tempo
  * decorrido são persistidos junto da sessão, mas não pertencem ao motor: quem
  * cuida deles é o store da sessão.
+ *
+ * `showConnectionOrder` é a bandeira global de exibição da ordem: ela vive aqui
+ * porque é persistida com a sessão, e fica de fora do `DiagramSnapshot` porque
+ * é visualização, não conteúdo do diagrama (US-3.5).
  */
 export type SessionState = {
     nodes: Node[];
     edges: Edge[];
     seqMode: SequenceMode;
+    showConnectionOrder: boolean;
 };
 
 export type View = {
@@ -101,7 +106,8 @@ export type ArrowHead = {
 
 /**
  * O diagrama sozinho — é o que a pilha de desfazer guarda, e só isso: view,
- * seleção e modo de numeração ficam de fora por contrato (US-3.5).
+ * seleção e a bandeira de exibição da ordem ficam de fora por contrato
+ * (US-3.5): desfazer devolve o desenho, nunca o que se escolheu ver.
  */
 export type DiagramSnapshot = {
     nodes: Node[];

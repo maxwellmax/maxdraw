@@ -207,10 +207,8 @@ watch(
  * fora do desenho sem sair do estado, e a cor vem sempre da categoria do bloco
  * de origem — nunca do tipo da ligação (US-4.1).
  */
-const wires = computed(() => {
-    const numbers = engine.seqMap();
-
-    return engine.liveEdges().flatMap((edge) => {
+const wires = computed(() =>
+    engine.liveEdges().flatMap((edge) => {
         const geometry = engine.geometry(edge);
 
         if (!geometry) {
@@ -230,13 +228,13 @@ const wires = computed(() => {
                 color: engine.edgeColor(edge),
                 selected: engine.isSelected('edge', edge.id),
                 chip,
-                seq: numbers[edge.id] ?? null,
+                order: engine.showConnectionOrder ? edge.order : null,
                 midX,
                 midY,
             },
         ];
-    });
-});
+    }),
+);
 
 const selectedEdge = computed(() =>
     engine.selection?.kind === 'edge' ? engine.edge(engine.selection.id) : null,
@@ -645,7 +643,7 @@ function placeNode(slug: string): void {
                         :badge="wire.chip.badge"
                         :label="wire.chip.label"
                         :bare="wire.chip.bare"
-                        :seq="wire.seq"
+                        :order="wire.order"
                         :color="wire.color"
                         :x="wire.midX"
                         :y="wire.midY"

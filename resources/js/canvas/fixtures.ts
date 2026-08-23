@@ -238,8 +238,9 @@ export function edgeFixture(
 export function stateFixture(
     nodes: Node[] = [],
     edges: Edge[] = [],
+    showConnectionOrder = true,
 ): SessionState {
-    return { nodes, edges, seqMode: 'out' };
+    return { nodes, edges, seqMode: 'out', showConnectionOrder };
 }
 
 /**

@@ -524,6 +524,43 @@ describe('desfazer', () => {
         expect(engine.undoDepth).toBe(depth);
     });
 
+    it('toggling_show_connection_order_does_not_push_undo', () => {
+        const engine = engineWith(
+            stateFixture(
+                [nodeFixture('a'), nodeFixture('b', 400)],
+                [edgeFixture('e1', 'a', 'b', 1)],
+            ),
+        );
+
+        const depth = engine.undoDepth;
+
+        for (let round = 0; round < 5; round++) {
+            expect(engine.setShowConnectionOrder(false)).toBe(true);
+            expect(engine.showConnectionOrder).toBe(false);
+            expect(engine.setShowConnectionOrder(true)).toBe(true);
+        }
+
+        expect(engine.setShowConnectionOrder(true)).toBe(false);
+        expect(engine.undoDepth).toBe(depth);
+        expect(engine.canUndo).toBe(false);
+
+        // A bandeira apagada não mexe no número gravado na aresta.
+        engine.setShowConnectionOrder(false);
+
+        expect(engine.edges[0].order).toBe(1);
+    });
+
+    it('undo_does_not_revert_show_connection_order', () => {
+        const engine = engineWith();
+
+        engine.addNode('api');
+        engine.setShowConnectionOrder(false);
+
+        expect(engine.undo()).toBe(true);
+        expect(engine.showConnectionOrder).toBe(false);
+        expect(engine.nodes).toHaveLength(0);
+    });
+
     it('pan_and_zoom_do_not_push_undo', () => {
         const engine = engineWith();
 

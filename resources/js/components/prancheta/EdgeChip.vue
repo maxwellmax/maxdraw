@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref } from 'vue';
 import { labelRoomLeft } from '@/canvas/labels';
-import type { SequenceNumber } from '@/canvas/sequence';
+import { SEQ_PILL_HEIGHT, SEQ_PILL_PADDING, seqPillWidth } from '@/canvas/svg';
 
 const props = withDefaults(
     defineProps<{
@@ -12,9 +12,9 @@ const props = withDefaults(
         color: string;
         x: number;
         y: number;
-        seq?: SequenceNumber | null;
+        order?: number | null;
     }>(),
-    { seq: null },
+    { order: null },
 );
 
 const emit = defineEmits<{
@@ -34,6 +34,19 @@ const style = computed(() => ({
     '--ec': props.color,
     left: `${props.x.toFixed(1)}px`,
     top: `${props.y.toFixed(1)}px`,
+}));
+
+/**
+ * O pill do número: fundo cheio na cor da seta e o número na cor do papel. A
+ * geometria vem das mesmas constantes do exportador — a tela e o arquivo
+ * desenham o mesmo selo, dígito a dígito (UI-01).
+ */
+const pillStyle = computed(() => ({
+    background: 'var(--ec)',
+    color: 'var(--paper)',
+    minWidth: `${seqPillWidth(props.order ?? 1)}px`,
+    height: `${SEQ_PILL_HEIGHT}px`,
+    paddingInline: `${SEQ_PILL_PADDING}px`,
 }));
 
 /**
@@ -136,14 +149,11 @@ defineExpose({ beginEdit });
         @dblclick.stop="beginEdit"
     >
         <b
-            v-if="seq"
+            v-if="order !== null"
             data-testid="edge-chip-seq"
-            class="grid size-[15px] flex-none place-items-center rounded-full bg-sd-paper text-[9px] leading-none font-semibold tabular-nums"
-            :style="{
-                border: '1.2px solid var(--ec)',
-                color: 'var(--ec)',
-            }"
-            v-text="seq.index"
+            class="grid flex-none place-items-center rounded-full text-[9px] leading-none font-semibold tabular-nums"
+            :style="pillStyle"
+            v-text="order"
         ></b>
 
         <b

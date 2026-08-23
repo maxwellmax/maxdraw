@@ -19,7 +19,7 @@ it('deriva a legenda inteira do diagrama, sem configuração do usuário', funct
         ->toContain('const drawn = liveEdges(state.edges, state.nodes);');
 
     expect(frontendSource('canvas/engine.ts'))
-        ->toMatch('/legendData\(\): LegendData \{\s*return legendData\(\s*this\.state,\s*this\.index,\s*this\.linkIndex,\s*this\.sequenceModeOptions,\s*\);\s*\}/');
+        ->toMatch('/legendData\(\): LegendData \{\s*return legendData\(this\.state, this\.index, this\.linkIndex\);\s*\}/');
 });
 
 it('lista só as categorias presentes, na ordem do catálogo, com a contagem', function () {
@@ -36,10 +36,13 @@ it('lista só os tipos usados por aresta válida, na ordem do catálogo', functi
         ->toMatch('/\[\.\.\.linkIndex\.values\(\)\]\s*\.filter\(\(type\) => drawn\.some\(\(edge\) => edge\.kind === type\.slug\)\)/');
 });
 
-it('sinaliza as arestas sem tipo e a numeração ativa', function () {
+it('sinaliza as arestas sem tipo e a ordem explícita das conexões', function () {
     expect(frontendSource('canvas/legend.ts'))
         ->toMatch('/const untyped = drawn\.some\(\s*\(edge\) => linkTypeOf\(linkIndex, edge\.kind\) === null,\s*\);/')
-        ->toMatch('/if \(Object\.keys\(numbers\)\.length === 0\) \{\s*return null;\s*\}/');
+        ->toMatch('/if \(!state\.showConnectionOrder\) \{\s*return null;\s*\}/')
+        ->toMatch('/if \(!drawn\.some\(\(edge\) => edge\.order !== null\)\) \{\s*return null;\s*\}/')
+        ->toContain('sequence: legendSequence(drawn, state),')
+        ->not->toContain('seqMap(');
 });
 
 it('some por completo quando não há nada desenhado', function () {
@@ -93,17 +96,38 @@ it('dá à seta sem tipo a linha que ensina a escolher o protocolo', function ()
         ->toContain("export const UNTYPED_GLOSS = 'clique na seta e escolha o protocolo';");
 
     expect(frontendSource('components/prancheta/LegendContent.vue'))
-        ->toContain("import { UNTYPED_GLOSS, UNTYPED_NAME } from '@/canvas/legend';")
+        ->toContain('UNTYPED_GLOSS,')
+        ->toContain('UNTYPED_NAME,')
+        ->toContain("} from '@/canvas/legend';")
         ->toContain('v-if="data.untyped"');
 });
 
-it('mostra a seção Sequência só quando há numeração, com o texto do modo', function () {
-    expect(frontendSource('components/prancheta/LegendContent.vue'))
+it('mostra a seção Sequência só quando há numeração, com o texto da ordem', function () {
+    $content = frontendSource('components/prancheta/LegendContent.vue');
+
+    expect($content)
         ->toContain('v-if="data.sequence"')
         ->toContain('Sequência')
         ->toContain('data-testid="legend-sequence"')
-        ->toContain('data.sequence.name')
-        ->toContain('{{ data.sequence.text }}');
+        ->toContain('ORDER_NAME')
+        ->toContain('{{ ORDER_GLOSS }}')
+        ->not->toContain('data-mode');
+
+    // A amostra da legenda é o mesmo pill sólido do chip da seta.
+    expect($content)
+        ->toContain('data-testid="legend-order-pill"')
+        ->toContain('rounded-full bg-sd-ink-3')
+        ->toContain('text-sd-paper');
+});
+
+it('não expõe modo de numeração em nó nenhum da legenda', function () {
+    expect(frontendSource('components/prancheta/LegendContent.vue'))
+        ->not->toContain('data-mode')
+        ->not->toContain('sequence.mode');
+
+    expect(frontendSource('canvas/legend.ts'))
+        ->toMatch('/export type LegendSequence = \{\s*name: string;\s*text: string;\s*\}/')
+        ->not->toContain('mode:');
 });
 
 it('mantém as amostras de traço neutras: a cor só está no quadradinho', function () {
@@ -118,11 +142,20 @@ it('mantém as amostras de traço neutras: a cor só está no quadradinho', func
 
     $content = frontendSource('components/prancheta/LegendContent.vue');
 
-    expect(substr_count($content, ':style='))->toBe(1)
-        ->and($content)->toContain(':style="{ background: category.color }"');
+    // Duas ligações de estilo: a cor do quadradinho e a geometria do pill.
+    expect(substr_count($content, ':style='))->toBe(2)
+        ->and($content)->toContain(':style="{ background: category.color }"')
+        ->and($content)->toContain(':style="samplePill"');
+
+    preg_match('/const samplePill = \{(.*?)\n\};/s', $content, $pill);
+
+    expect($pill[1])
+        ->not->toContain('--c-')
+        ->not->toContain('color:')
+        ->not->toContain('background');
 });
 
-it('tira a glosa e o texto do modo do catálogo do servidor, sem tabela paralela', function () {
+it('tira a glosa do catálogo do servidor, sem tabela paralela no cliente', function () {
     seedCatalog();
 
     $client = frontendSource('canvas/legend.ts').frontendSource('components/prancheta/LegendContent.vue');
@@ -131,13 +164,15 @@ it('tira a glosa e o texto do modo do catálogo do servidor, sem tabela paralela
         expect($client)->not->toContain($gloss);
     }
 
+    // O modo de catálogo saiu de cena: nenhum texto dele sobra no cliente.
     foreach (SequenceMode::query()->pluck('legend_text')->filter() as $text) {
         expect($client)->not->toContain($text);
     }
 
     expect(frontendSource('canvas/legend.ts'))
         ->toContain('gloss: type.gloss,')
-        ->toContain("text: option?.legend_text ?? '',");
+        ->toContain("export const ORDER_NAME = 'ordem das conexões';")
+        ->toContain('return { name: ORDER_NAME, text: ORDER_GLOSS };');
 
     $this->actingAs(User::factory()->create())
         ->get(route('board'))
@@ -148,6 +183,22 @@ it('tira a glosa e o texto do modo do catálogo do servidor, sem tabela paralela
             ->where('catalog.link_types.0.gloss', 'requisição e resposta; o chamador fica esperando')
             ->where('catalog.sequence_modes.0.legend_text', 'quando um bloco dispara mais de uma coisa, o número diz o que vem antes')
             ->etc());
+});
+
+it('escreve o texto da sequência uma vez só, para tela e arquivo', function () {
+    preg_match(
+        "/export const ORDER_GLOSS =\s*'([^']+)';/",
+        frontendSource('canvas/legend.ts'),
+        $gloss,
+    );
+
+    expect($gloss[1])->not->toBeEmpty();
+
+    foreach (['components/prancheta/LegendContent.vue', 'canvas/svg.ts'] as $file) {
+        expect(frontendSource($file))
+            ->toContain('ORDER_GLOSS')
+            ->not->toContain($gloss[1]);
+    }
 });
 
 it('recolhe e expande a legenda por um controle só', function () {
@@ -208,6 +259,8 @@ it('cobre no Vitest cada teste que a fase pede', function (string $name) {
     'legendData_lists_only_used_link_types_in_catalog_order',
     'legendData_flags_untyped_edges',
     'legendData_flags_sequence_only_when_numbering_is_on',
+    'legend_sequence_has_no_mode_and_no_catalog_text',
+    'sequence_section_ignores_orders_of_edges_that_are_not_drawn',
     'legendData_is_empty_for_empty_diagram',
     'dangling_edges_do_not_appear_in_legend',
 ]);

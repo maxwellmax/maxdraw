@@ -5,30 +5,23 @@ import {
     edgeFixture,
     linkTypesFixture,
     nodeFixture,
-    sequenceModesFixture,
     stateFixture,
 } from './fixtures';
-import type { Edge, Node, SequenceMode, SessionState } from './types';
+import { ORDER_GLOSS, ORDER_NAME } from './legend';
+import type { Edge, Node, SessionState } from './types';
 
 function engineWith(state: SessionState): CanvasEngine {
-    return new CanvasEngine(
-        state,
-        catalogFixture(),
-        linkTypesFixture(),
-        sequenceModesFixture(),
-    );
+    return new CanvasEngine(state, catalogFixture(), linkTypesFixture());
 }
 
 function legendOf(
     nodes: Node[] = [],
     edges: Edge[] = [],
-    mode: SequenceMode = 'out',
+    showConnectionOrder = true,
 ) {
-    const state = stateFixture(nodes, edges);
-
-    state.seqMode = mode;
-
-    return engineWith(state).legendData();
+    return engineWith(
+        stateFixture(nodes, edges, showConnectionOrder),
+    ).legendData();
 }
 
 function typed(id: string, from: string, to: string, kind: string): Edge {
@@ -122,30 +115,59 @@ describe('legendData', () => {
             nodeFixture('b', 200, 0, 'api'),
             nodeFixture('c', 400, 0, 'sql'),
         ];
-        const edges = [
+        const plain = [
             typed('e1', 'a', 'b', 'http'),
             typed('e2', 'b', 'c', 'query'),
         ];
+        const numbered = [
+            { ...plain[0], order: 1 },
+            { ...plain[1], order: 2 },
+        ];
 
-        expect(legendOf(nodes, edges, 'off').sequence).toBeNull();
+        // Nenhuma aresta na sequência: não há número a explicar.
+        expect(legendOf(nodes, plain).sequence).toBeNull();
 
-        expect(legendOf(nodes, edges, 'flow').sequence).toEqual({
-            mode: 'flow',
-            name: 'Sequência do fluxo inteiro',
-            text: 'os passos na ordem em que acontecem, começando pelo cliente',
+        expect(legendOf(nodes, numbered).sequence).toEqual({
+            name: ORDER_NAME,
+            text: ORDER_GLOSS,
         });
 
-        // Uma saída por bloco: o modo `out` não numera nada, e a seção some.
-        expect(legendOf(nodes, edges, 'out').sequence).toBeNull();
+        // Uma só basta para a seção existir.
+        expect(legendOf(nodes, [plain[0], numbered[1]]).sequence).toEqual({
+            name: ORDER_NAME,
+            text: ORDER_GLOSS,
+        });
 
+        // Bandeira apagada: a seção some, e os números seguem no estado.
+        const hidden = stateFixture(nodes, numbered, false);
+
+        expect(engineWith(hidden).legendData().sequence).toBeNull();
+        expect(hidden.edges.map((edge) => edge.order)).toEqual([1, 2]);
+    });
+
+    it('legend_sequence_has_no_mode_and_no_catalog_text', () => {
+        const nodes = [
+            nodeFixture('a', 0, 0, 'browser'),
+            nodeFixture('b', 200, 0, 'api'),
+        ];
+        const sequence = legendOf(nodes, [
+            { ...typed('e1', 'a', 'b', 'http'), order: 1 },
+        ]).sequence;
+
+        expect(Object.keys(sequence!)).toEqual(['name', 'text']);
+        expect(sequence).not.toHaveProperty('mode');
+        expect(sequence?.text).toBe(ORDER_GLOSS);
+    });
+
+    it('sequence_section_ignores_orders_of_edges_that_are_not_drawn', () => {
+        const nodes = [nodeFixture('a', 0, 0, 'browser')];
+
+        // A órfã guarda o número dela, mas não é desenhada: nada a explicar.
         expect(
-            legendOf(nodes, [...edges, typed('e3', 'b', 'a', 'http')], 'out')
-                .sequence,
-        ).toEqual({
-            mode: 'out',
-            name: 'Ordem de saída de cada bloco',
-            text: 'quando um bloco dispara mais de uma coisa, o número diz o que vem antes',
-        });
+            legendOf(nodes, [
+                { ...edgeFixture('órfã', 'a', 'sumiu'), order: 1 },
+            ]).sequence,
+        ).toBeNull();
     });
 
     it('legendData_is_empty_for_empty_diagram', () => {

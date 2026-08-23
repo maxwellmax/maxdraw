@@ -113,6 +113,7 @@ export function recordFrom(body: SessionBody): SessionRecord {
         nodes: body.nodes.map((node) => ({ ...node })),
         edges: body.edges.map((edge) => ({ ...edge })),
         seqMode: body.seq_mode,
+        showConnectionOrder: true,
         checks: { ...body.checks },
         notes: body.notes,
         estimate: { ...body.estimate },

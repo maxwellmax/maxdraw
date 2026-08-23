@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { edgeFixture, nodeFixture } from './fixtures';
+import { restore, snapshot } from './diagram';
+import { edgeFixture, nodeFixture, stateFixture } from './fixtures';
 import type { DiagramSnapshot } from './types';
 import { UNDO_LIMIT, UndoStack } from './undo';
 
@@ -42,6 +43,31 @@ describe('UndoStack', () => {
 
         expect(restored).toEqual(before);
         expect(restored?.nodes[0]).not.toBe(before.nodes[0]);
+    });
+
+    it('diagram_snapshot_serializes_only_nodes_and_edges', () => {
+        const state = stateFixture(
+            [nodeFixture('a'), nodeFixture('b', 400)],
+            [edgeFixture('e1', 'a', 'b', 1)],
+            false,
+        );
+
+        expect(Object.keys(snapshot(state))).toEqual(['nodes', 'edges']);
+
+        const stack = new UndoStack();
+
+        stack.push(snapshot(state));
+
+        const restored = stack.undo(snapshot(state))!;
+
+        expect(Object.keys(restored)).toEqual(['nodes', 'edges']);
+        expect(restored).not.toHaveProperty('showConnectionOrder');
+
+        // Devolver o diagrama à pilha não devolve a bandeira de exibição.
+        restore(state, restored);
+
+        expect(state.showConnectionOrder).toBe(false);
+        expect(state.edges[0].order).toBe(1);
     });
 
     it('redo_stack_is_cleared_by_new_action', () => {

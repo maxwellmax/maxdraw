@@ -1,7 +1,7 @@
 /**
  * A legenda automática. Ela não tem estado próprio nem configuração: tudo o que
  * mostra é derivado do diagrama de agora — as categorias que estão desenhadas,
- * os tipos que as setas usam e o modo de numeração aceso (US-5.1).
+ * os tipos que as setas usam e a ordem explícita das conexões (US-5.1).
  */
 
 import type { ComponentIndex } from './catalog';
@@ -9,9 +9,7 @@ import { catalogCategories } from './catalog';
 import { liveEdges } from './edges';
 import type { LinkTypeIndex } from './links';
 import { linkTypeOf, shortLinkName } from './links';
-import type { SequenceModeOption } from './sequence';
-import { seqMap, sequenceModeOf } from './sequence';
-import type { Node, SequenceMode, SessionState } from './types';
+import type { Edge, Node, SessionState } from './types';
 
 /** Uma linha da seção *Blocos*: o quadradinho colorido, o nome e a contagem. */
 export type LegendCategory = {
@@ -35,9 +33,8 @@ export type LegendLink = {
     gloss: string;
 };
 
-/** A seção *Sequência*, com o nome e a glosa do modo aceso, vindos do catálogo. */
+/** A seção *Sequência*, com o nome e a glosa da ordem explícita das conexões. */
 export type LegendSequence = {
-    mode: SequenceMode;
     name: string;
     text: string;
 };
@@ -50,6 +47,17 @@ export type LegendSequence = {
 export const UNTYPED_NAME = 'sem tipo';
 
 export const UNTYPED_GLOSS = 'clique na seta e escolha o protocolo';
+
+/**
+ * O nome e a glosa da seção de sequência. Não há mais modo de numeração no
+ * catálogo do servidor para tirá-los de lá: a ordem é uma só, e o par vive
+ * aqui — uma constante única, importada pela tela e pelo arquivo exportado.
+ * Constante única no cliente sim, catálogo paralelo no cliente não.
+ */
+export const ORDER_NAME = 'ordem das conexões';
+
+export const ORDER_GLOSS =
+    'o número diz em que passo cada conexão entra no fluxo';
 
 export type LegendData = {
     categories: LegendCategory[];
@@ -83,28 +91,23 @@ function countByCategory(
 }
 
 /**
- * A seção de sequência só existe quando há número desenhado — o que descarta
- * tanto o modo desligado quanto o desenho que nenhum modo consegue numerar.
+ * A seção de sequência só existe quando há número desenhado: com a bandeira de
+ * exibição apagada, ou sem nenhuma aresta desenhada dentro da sequência, não há
+ * o que explicar.
  */
 function legendSequence(
+    drawn: readonly Edge[],
     state: SessionState,
-    index: ComponentIndex,
-    modes: readonly SequenceModeOption[],
 ): LegendSequence | null {
-    const numbers = seqMap(state.seqMode, state.edges, state.nodes, index);
-
-    if (Object.keys(numbers).length === 0) {
+    if (!state.showConnectionOrder) {
         return null;
     }
 
-    const mode = sequenceModeOf(state.seqMode);
-    const option = modes.find((candidate) => candidate.slug === mode);
+    if (!drawn.some((edge) => edge.order !== null)) {
+        return null;
+    }
 
-    return {
-        mode,
-        name: option?.name ?? '',
-        text: option?.legend_text ?? '',
-    };
+    return { name: ORDER_NAME, text: ORDER_GLOSS };
 }
 
 /**
@@ -116,7 +119,6 @@ export function legendData(
     state: SessionState,
     index: ComponentIndex,
     linkIndex: LinkTypeIndex,
-    modes: readonly SequenceModeOption[] = [],
 ): LegendData {
     const counts = countByCategory(state.nodes, index);
 
@@ -150,7 +152,7 @@ export function legendData(
         categories,
         links,
         untyped,
-        sequence: legendSequence(state, index, modes),
+        sequence: legendSequence(drawn, state),
         empty: categories.length === 0 && links.length === 0 && !untyped,
     };
 }

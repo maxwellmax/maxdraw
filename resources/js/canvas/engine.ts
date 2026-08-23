@@ -133,6 +133,11 @@ export class CanvasEngine {
         return sequenceModeOf(this.state.seqMode);
     }
 
+    /** Se os números das conexões aparecem na tela e no arquivo exportado. */
+    get showConnectionOrder(): boolean {
+        return this.state.showConnectionOrder;
+    }
+
     /** As três opções do menu de numeração, na ordem em que a lista as mostra. */
     get sequenceModes(): SequenceMenuItem[] {
         return sequenceMenu(this.sequenceModeOptions);
@@ -581,12 +586,7 @@ export class CanvasEngine {
      * usuário entra nela, e diagrama vazio devolve legenda vazia (US-5.1).
      */
     legendData(): LegendData {
-        return legendData(
-            this.state,
-            this.index,
-            this.linkIndex,
-            this.sequenceModeOptions,
-        );
+        return legendData(this.state, this.index, this.linkIndex);
     }
 
     /**
@@ -600,7 +600,6 @@ export class CanvasEngine {
             index: this.index,
             linkIndex: this.linkIndex,
             palette,
-            modes: this.sequenceModeOptions,
             heights: this.heights,
         });
     }
@@ -616,6 +615,21 @@ export class CanvasEngine {
 
     moveSeq(id: string, direction: number): boolean {
         return this.mutateEdge(() => moveSeq(this.state, id, direction));
+    }
+
+    /**
+     * Acende ou apaga os números das conexões. É ajuste de visualização: não
+     * empilha desfazer e não entra no `DiagramSnapshot`, e os `order` das
+     * arestas continuam intactos com a bandeira apagada (US-3.5).
+     */
+    setShowConnectionOrder(value: boolean): boolean {
+        if (this.state.showConnectionOrder === value) {
+            return false;
+        }
+
+        this.state.showConnectionOrder = value;
+
+        return true;
     }
 
     /** Trocar de modo é ajuste de visualização: não empilha desfazer (US-4.3). */

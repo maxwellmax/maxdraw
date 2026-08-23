@@ -16,11 +16,15 @@ import { dashOf, edgeChip, edgeColor } from './edges';
 import { bez, head, NODE_WIDTH, ptAt } from './geometry';
 import { CANVAS_ICONS, hasCanvasIcon } from './icons';
 import type { LegendData } from './legend';
-import { legendData, UNTYPED_GLOSS, UNTYPED_NAME } from './legend';
+import {
+    legendData,
+    ORDER_GLOSS,
+    ORDER_NAME,
+    UNTYPED_GLOSS,
+    UNTYPED_NAME,
+} from './legend';
 import type { LinkTypeIndex } from './links';
 import { nodeHeight } from './nodes';
-import type { SequenceModeOption, SequenceNumber } from './sequence';
-import { seqMap } from './sequence';
 import type { EdgeGeometry, Node, NodeHeights, SessionState } from './types';
 
 /** As cores do tema ativo, por token. É o que o `useTheme` relê a cada troca. */
@@ -37,8 +41,37 @@ export const LABEL_WRAP_CHARS = 18;
 
 export const MAX_LABEL_LINES = 3;
 
-/** O quanto o retângulo do chip alarga para abrir espaço ao círculo do número. */
-export const SEQ_LEAD = 20;
+/** A altura do pill do número da conexão. É a mesma da tela, por paridade. */
+export const SEQ_PILL_HEIGHT = 15;
+
+/** O respiro de cada lado do número dentro do pill. */
+export const SEQ_PILL_PADDING = 4;
+
+/** A largura de um dígito do número, na fonte mono do chip. */
+export const SEQ_DIGIT_WIDTH = 6;
+
+/** O vão entre o pill do número e o texto do chip. */
+export const SEQ_LEAD_GAP = 5;
+
+/**
+ * A largura do pill do número. Com um dígito ele é um círculo; daí em diante
+ * cresce com a contagem de dígitos, para o número não sair cortado (UI-01).
+ */
+export function seqPillWidth(order: number): number {
+    return Math.max(
+        SEQ_PILL_HEIGHT,
+        String(order).length * SEQ_DIGIT_WIDTH + SEQ_PILL_PADDING * 2,
+    );
+}
+
+/**
+ * O quanto o retângulo do chip alarga para abrir espaço ao pill do número.
+ * Não é mais um valor fixo: acompanha a largura do pill, que depende dos
+ * dígitos do número.
+ */
+export function seqLead(order: number): number {
+    return seqPillWidth(order) + SEQ_LEAD_GAP;
+}
 
 /** A largura mínima do bloco da legenda, antes de qualquer linha esticá-lo. */
 export const LEGEND_MIN_WIDTH = 90;
@@ -166,17 +199,19 @@ function sampleMarkup(
     return markup;
 }
 
-/** A amostra da linha de sequência: o mesmo círculo do chip, em cor neutra. */
-function seqSampleMarkup(x: number, cy: number, color: string): string {
-    return (
-        `<circle cx="${x + 19}" cy="${cy - 3.5}" r="8.4" fill="none" stroke="${color}" stroke-width="1.4"/>` +
-        `<text x="${x + 19}" y="${cy - 0.2}" text-anchor="middle" font-family="${MONO_FONT}" font-size="9.5" font-weight="600" fill="${color}">1</text>`
-    );
+/** A amostra da linha de sequência: o mesmo pill do chip, em cor neutra. */
+function seqSampleMarkup(
+    x: number,
+    cy: number,
+    color: string,
+    paper: string,
+): string {
+    return seqPillMarkup(x + 19, cy - 3.5, 1, color, paper);
 }
 
 /**
  * As linhas da seção *Ligações*: os tipos usados, a linha das setas sem tipo e,
- * por último, a linha do modo de numeração aceso — a mesma ordem da tela.
+ * por último, a linha da ordem das conexões — a mesma ordem da tela.
  */
 function legendRows(data: LegendData): LegendRow[] {
     const rows: LegendRow[] = data.links.map((link) => ({
@@ -202,8 +237,8 @@ function legendRows(data: LegendData): LegendRow[] {
     if (data.sequence) {
         rows.push({
             badge: '',
-            name: data.sequence.name,
-            gloss: data.sequence.text,
+            name: ORDER_NAME,
+            gloss: ORDER_GLOSS,
             dash: null,
             bidir: false,
             seq: true,
@@ -231,6 +266,7 @@ export function svgLegend(
     const muted = svgColor(palette, '--ink-3');
     const ink = svgColor(palette, '--ink');
     const ink2 = svgColor(palette, '--ink-2');
+    const paper = svgColor(palette, '--paper');
 
     let markup = '';
     let cy = yTop + 9;
@@ -266,7 +302,7 @@ export function svgLegend(
             cy += 16;
 
             markup += row.seq
-                ? seqSampleMarkup(x, cy, muted)
+                ? seqSampleMarkup(x, cy, muted, paper)
                 : sampleMarkup(x, cy - 3.5, row.dash, row.bidir, muted);
 
             let textX = x + 45;
@@ -300,29 +336,35 @@ export function svgLegend(
     };
 }
 
-/** O círculo do número da seta, na cor da própria seta. */
-function seqDotMarkup(
+/**
+ * O pill do número da conexão: fundo cheio na cor da própria seta e o número
+ * na cor do papel. É sólido de propósito — é o que o distingue da caixa de
+ * texto do rótulo por forma e preenchimento, não só por cor (UI-01).
+ */
+function seqPillMarkup(
     cx: number,
     cy: number,
     value: number,
     color: string,
     paper: string,
 ): string {
+    const width = seqPillWidth(value);
+
     return (
-        `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="7.6" fill="${paper}" stroke="${color}" stroke-width="1.3"/>` +
-        `<text x="${cx.toFixed(1)}" y="${(cy + 3.1).toFixed(1)}" text-anchor="middle" font-family="${MONO_FONT}" font-size="9" font-weight="600" fill="${color}">${value}</text>`
+        `<rect x="${(cx - width / 2).toFixed(1)}" y="${(cy - SEQ_PILL_HEIGHT / 2).toFixed(1)}" width="${width.toFixed(1)}" height="${SEQ_PILL_HEIGHT}" rx="${SEQ_PILL_HEIGHT / 2}" fill="${color}"/>` +
+        `<text x="${cx.toFixed(1)}" y="${(cy + 3.2).toFixed(1)}" text-anchor="middle" font-family="${MONO_FONT}" font-size="9" font-weight="600" fill="${paper}">${value}</text>`
     );
 }
 
 /**
  * O chip da seta: selo e rótulo separados por ponto médio, dentro de um
- * retângulo que alarga 20 px quando há número — e que some por completo quando
- * só o número resta, sobrando o círculo sozinho (US-4.2).
+ * retângulo que alarga o bastante para o pill do número — e que some por
+ * completo quando só o número resta, sobrando o pill sozinho (US-4.2).
  */
 function chipMarkup(
     geometry: EdgeGeometry,
     chip: EdgeChip,
-    seq: SequenceNumber | null,
+    order: number | null,
     color: string,
     palette: SvgPalette,
 ): string {
@@ -331,17 +373,23 @@ function chipMarkup(
     const text = [chip.badge, chip.label].filter(Boolean).join(CHIP_SEPARATOR);
 
     if (text === '') {
-        return seq ? seqDotMarkup(mx, my, seq.index, color, paper) : '';
+        return order === null ? '' : seqPillMarkup(mx, my, order, color, paper);
     }
 
-    const lead = seq ? SEQ_LEAD : 0;
+    const lead = order === null ? 0 : seqLead(order);
     const width = text.length * 5.9 + 14 + lead;
     const left = mx - width / 2;
 
     let markup = `<rect x="${left.toFixed(1)}" y="${(my - 9).toFixed(1)}" width="${width.toFixed(1)}" height="18" rx="4" fill="${paper}" stroke="${svgColor(palette, '--line')}"/>`;
 
-    if (seq) {
-        markup += seqDotMarkup(left + 11, my, seq.index, color, paper);
+    if (order !== null) {
+        markup += seqPillMarkup(
+            left + SEQ_LEAD_GAP / 2 + seqPillWidth(order) / 2,
+            my,
+            order,
+            color,
+            paper,
+        );
     }
 
     markup += `<text x="${(mx + lead / 2).toFixed(1)}" y="${(my + 3.5).toFixed(1)}" text-anchor="middle" font-family="${MONO_FONT}" font-size="10" fill="${svgColor(palette, '--ink-2')}">`;
@@ -410,7 +458,6 @@ export type SvgContext = {
     index: ComponentIndex;
     linkIndex: LinkTypeIndex;
     palette: SvgPalette;
-    modes?: readonly SequenceModeOption[];
     heights?: NodeHeights;
 };
 
@@ -430,7 +477,7 @@ export function buildSVG(context: SvgContext): string {
     }
 
     const legend = svgLegend(
-        legendData(state, index, linkIndex, context.modes ?? []),
+        legendData(state, index, linkIndex),
         bounds.x0,
         bounds.y1 + LEGEND_GAP,
         palette,
@@ -443,8 +490,6 @@ export function buildSVG(context: SvgContext): string {
         bounds.y0 +
         (legend.height > 0 ? legend.height + LEGEND_GAP : 0) +
         SVG_PADDING * 2;
-
-    const numbers = seqMap(state.seqMode, state.edges, state.nodes, index);
 
     let body = '';
     let chips = '';
@@ -481,7 +526,7 @@ export function buildSVG(context: SvgContext): string {
         chips += chipMarkup(
             geometry,
             edgeChip(linkIndex, edge),
-            numbers[edge.id] ?? null,
+            state.showConnectionOrder ? edge.order : null,
             color,
             palette,
         );

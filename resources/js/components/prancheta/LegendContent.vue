@@ -1,9 +1,25 @@
 <script setup lang="ts">
 import type { LegendData } from '@/canvas/legend';
-import { UNTYPED_GLOSS, UNTYPED_NAME } from '@/canvas/legend';
+import {
+    ORDER_GLOSS,
+    ORDER_NAME,
+    UNTYPED_GLOSS,
+    UNTYPED_NAME,
+} from '@/canvas/legend';
+import { SEQ_PILL_HEIGHT, SEQ_PILL_PADDING, seqPillWidth } from '@/canvas/svg';
 import LegendLine from '@/components/prancheta/LegendLine.vue';
 
 defineProps<{ data: LegendData }>();
+
+/**
+ * A amostra da ordem é o mesmo pill do chip, com a geometria vinda das mesmas
+ * constantes — só a cor muda, porque a legenda é neutra (US-5.1, UI-01).
+ */
+const samplePill = {
+    minWidth: `${seqPillWidth(1)}px`,
+    height: `${SEQ_PILL_HEIGHT}px`,
+    paddingInline: `${SEQ_PILL_PADDING}px`,
+};
 </script>
 
 <template>
@@ -100,27 +116,25 @@ defineProps<{ data: LegendData }>();
             >
                 Sequência
             </div>
-            <div
-                data-testid="legend-sequence"
-                :data-mode="data.sequence.mode"
-                class="pt-1 pb-[5px]"
-            >
+            <div data-testid="legend-sequence" class="pt-1 pb-[5px]">
                 <div class="flex items-center gap-[7px]">
                     <span class="flex w-10 flex-none justify-center">
                         <b
-                            class="grid size-[17px] place-items-center rounded-full border-[1.4px] border-sd-ink-3 font-mono text-[9.5px] leading-none font-semibold text-sd-ink-3"
+                            data-testid="legend-order-pill"
+                            class="grid place-items-center rounded-full bg-sd-ink-3 font-mono text-[9px] leading-none font-semibold text-sd-paper tabular-nums"
+                            :style="samplePill"
                             >1</b
                         >
                     </span>
                     <span class="truncate text-[11.5px] text-sd-ink-3">{{
-                        data.sequence.name
+                        ORDER_NAME
                     }}</span>
                 </div>
                 <div
                     data-testid="legend-gloss"
                     class="mt-0.5 pl-[47px] text-[10.5px] leading-[1.35] text-sd-ink-3"
                 >
-                    {{ data.sequence.text }}
+                    {{ ORDER_GLOSS }}
                 </div>
             </div>
         </template>

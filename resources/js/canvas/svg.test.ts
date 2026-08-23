@@ -7,56 +7,55 @@ import {
     linkTypesFixture,
     nodeFixture,
     paletteFixture,
-    sequenceModesFixture,
     stateFixture,
 } from './fixtures';
-import { legendData } from './legend';
+import { legendData, ORDER_GLOSS, ORDER_NAME } from './legend';
 import { indexLinkTypes } from './links';
-import { LEGEND_GAP, SVG_PADDING, svgLegend, wrapLabel } from './svg';
-import type { Edge, Node, SequenceMode, SessionState } from './types';
+import {
+    LEGEND_GAP,
+    seqLead,
+    SEQ_PILL_HEIGHT,
+    seqPillWidth,
+    SVG_PADDING,
+    svgLegend,
+    wrapLabel,
+} from './svg';
+import type { Edge, Node, SessionState } from './types';
 
 const palette = paletteFixture();
 
 function engineWith(state: SessionState): CanvasEngine {
-    return new CanvasEngine(
-        state,
-        catalogFixture(),
-        linkTypesFixture(),
-        sequenceModesFixture(),
-    );
+    return new CanvasEngine(state, catalogFixture(), linkTypesFixture());
 }
 
 function svgOf(
     nodes: Node[] = [],
     edges: Edge[] = [],
-    mode: SequenceMode = 'out',
+    showConnectionOrder = true,
 ): string {
-    const state = stateFixture(nodes, edges);
-
-    state.seqMode = mode;
-
-    return engineWith(state).toSVG(palette);
+    return engineWith(stateFixture(nodes, edges, showConnectionOrder)).toSVG(
+        palette,
+    );
 }
 
 function legendOf(
     nodes: Node[] = [],
     edges: Edge[] = [],
-    mode: SequenceMode = 'out',
+    showConnectionOrder = true,
 ) {
-    const state = stateFixture(nodes, edges);
-
-    state.seqMode = mode;
-
     return legendData(
-        state,
+        stateFixture(nodes, edges, showConnectionOrder),
         indexComponents(catalogFixture()),
         indexLinkTypes(linkTypesFixture()),
-        sequenceModesFixture(),
     );
 }
 
 function typed(id: string, from: string, to: string, kind: string): Edge {
     return { ...edgeFixture(id, from, to), kind };
+}
+
+function numbered(edge: Edge, order: number): Edge {
+    return { ...edge, order };
 }
 
 /** Os atributos de um mesmo nome, na ordem em que aparecem na string. */
@@ -75,11 +74,16 @@ function chipRects(markup: string): { x: number; width: number }[] {
     ].map((match) => ({ x: Number(match[1]), width: Number(match[2]) }));
 }
 
-/** Os círculos de número da seta, que são os únicos de raio 7.6. */
-function seqDots(markup: string): number[] {
+/** Os pills de número: os retângulos de altura 15 com o canto arredondado. */
+function seqPills(markup: string): { x: number; width: number }[] {
     return [
-        ...markup.matchAll(/<circle cx="(-?[\d.]+)" cy="-?[\d.]+" r="7\.6"/g),
-    ].map((match) => Number(match[1]));
+        ...markup.matchAll(
+            new RegExp(
+                `<rect x="(-?[\\d.]+)" y="-?[\\d.]+" width="([\\d.]+)" height="${SEQ_PILL_HEIGHT}" rx="${SEQ_PILL_HEIGHT / 2}"`,
+                'g',
+            ),
+        ),
+    ].map((match) => ({ x: Number(match[1]), width: Number(match[2]) }));
 }
 
 /** As pontas de seta: os únicos triângulos preenchidos do corpo do desenho. */
@@ -194,55 +198,142 @@ describe('buildSVG', () => {
         expect(arrowHeads(double, color)).toBe(2);
     });
 
-    it('svg_chip_with_number_widens_by_20px', () => {
+    it('svg_chip_widens_by_the_pill_lead', () => {
+        const nodes = [
+            nodeFixture('a', 0, 0, 'browser'),
+            nodeFixture('b', 300, 0, 'api'),
+        ];
+        const first = { ...typed('e1', 'a', 'b', 'http'), label: 'login' };
+
+        const plain = chipRects(svgOf(nodes, [first]));
+        const withPill = chipRects(svgOf(nodes, [numbered(first, 1)]));
+
+        expect(plain).toHaveLength(1);
+        expect(withPill).toHaveLength(1);
+        expect(withPill[0].width - plain[0].width).toBe(seqLead(1));
+
+        // O pill fica à esquerda do retângulo, não no meio da curva.
+        const markup = svgOf(nodes, [numbered(first, 1)]);
+        const pill = seqPills(markup)[0];
+
+        expect(pill.width).toBe(seqPillWidth(1));
+        expect(pill.x).toBeCloseTo(withPill[0].x + 2.5, 5);
+        expect(markup).toContain('>1</text>');
+    });
+
+    it('svg_pill_grows_with_the_digit_count', () => {
+        const nodes = [
+            nodeFixture('a', 0, 0, 'browser'),
+            nodeFixture('b', 300, 0, 'api'),
+        ];
+        const edge = { ...typed('e1', 'a', 'b', 'http'), label: 'login' };
+
+        const widths = [1, 12, 123].map((order) => {
+            const markup = svgOf(nodes, [numbered(edge, order)]);
+            const pill = seqPills(markup)[0];
+
+            expect(markup).toContain(`>${order}</text>`);
+            expect(pill.width).toBe(seqPillWidth(order));
+
+            // O número cabe no pill: o texto nunca é mais largo que a caixa.
+            expect(pill.width).toBeGreaterThanOrEqual(String(order).length * 6);
+
+            return pill.width;
+        });
+
+        expect(widths[0]).toBeLessThan(widths[1]);
+        expect(widths[1]).toBeLessThan(widths[2]);
+
+        // O retângulo do chip acompanha o pill, dígito a dígito.
+        const rects = [1, 123].map(
+            (order) =>
+                chipRects(svgOf(nodes, [numbered(edge, order)]))[0].width,
+        );
+
+        expect(rects[1] - rects[0]).toBe(seqLead(123) - seqLead(1));
+    });
+
+    it('svg_pill_is_solid_in_the_edge_color', () => {
+        const nodes = [
+            nodeFixture('a', 0, 0, 'browser'),
+            nodeFixture('b', 300, 0, 'api'),
+        ];
+        const markup = svgOf(nodes, [numbered(edgeFixture('e1', 'a', 'b'), 1)]);
+
+        expect(markup).toContain(
+            `height="${SEQ_PILL_HEIGHT}" rx="${SEQ_PILL_HEIGHT / 2}" fill="${palette['--c-client']}"`,
+        );
+        expect(markup).toContain(`fill="${palette['--paper']}">1</text>`);
+    });
+
+    it('svg_hides_every_badge_when_show_connection_order_is_off', () => {
         const nodes = [
             nodeFixture('a', 0, 0, 'browser'),
             nodeFixture('b', 300, 0, 'api'),
             nodeFixture('c', 300, 300, 'sql'),
         ];
-        const first = { ...typed('e1', 'a', 'b', 'http'), label: 'login' };
+        const edges = [
+            numbered({ ...typed('e1', 'a', 'b', 'http'), label: 'login' }, 1),
+            numbered(edgeFixture('e2', 'a', 'c'), 2),
+        ];
+        const state = stateFixture(nodes, edges, false);
+        const markup = engineWith(state).toSVG(palette);
 
-        // A segunda saída do mesmo bloco é o que faz o modo `out` numerar.
-        const plain = chipRects(svgOf(nodes, [first]));
-        const numbered = chipRects(
-            svgOf(nodes, [first, edgeFixture('e2', 'a', 'c')]),
+        expect(seqPills(markup)).toEqual([]);
+        expect(markup).not.toContain('>1</text>');
+        expect(markup).not.toContain('>2</text>');
+
+        // Os valores continuam no estado: apagar não renumera nada.
+        expect(state.edges.map((edge) => edge.order)).toEqual([1, 2]);
+
+        // E o chip volta à largura de quem não tem número.
+        expect(chipRects(markup)[0].width).toBe(
+            chipRects(svgOf(nodes, [{ ...edges[0], order: null }]))[0].width,
         );
-
-        expect(plain).toHaveLength(1);
-        expect(numbered).toHaveLength(1);
-        expect(numbered[0].width - plain[0].width).toBe(20);
-
-        // O círculo fica à esquerda do retângulo, não no meio da curva.
-        const numberedMarkup = svgOf(nodes, [
-            first,
-            edgeFixture('e2', 'a', 'c'),
-        ]);
-
-        expect(seqDots(numberedMarkup)[0]).toBeCloseTo(numbered[0].x + 11, 5);
-        expect(numberedMarkup).toContain('>1</text>');
     });
 
-    it('svg_bare_edge_with_number_renders_only_the_circle', () => {
+    it('svg_edge_without_order_has_no_badge', () => {
+        const nodes = [
+            nodeFixture('a', 0, 0, 'browser'),
+            nodeFixture('b', 300, 0, 'api'),
+        ];
+
+        expect(seqPills(svgOf(nodes, [typed('e1', 'a', 'b', 'http')]))).toEqual(
+            [],
+        );
+
+        // A órfã guarda o número, mas não é desenhada: não emite pill.
+        const orphan = svgOf(nodes, [
+            numbered(typed('órfã', 'a', 'sumiu', 'http'), 1),
+        ]);
+
+        expect(seqPills(orphan)).toEqual([]);
+    });
+
+    it('svg_bare_edge_with_number_renders_only_the_pill', () => {
         const nodes = [
             nodeFixture('a', 0, 0, 'browser'),
             nodeFixture('b', 300, 0, 'api'),
             nodeFixture('c', 300, 300, 'sql'),
         ];
         const markup = svgOf(nodes, [
-            edgeFixture('e1', 'a', 'b'),
-            edgeFixture('e2', 'a', 'c'),
+            numbered(edgeFixture('e1', 'a', 'b'), 1),
+            numbered(edgeFixture('e2', 'a', 'c'), 2),
         ]);
 
-        // Sem selo e sem rótulo não há moldura: sobra o círculo do número.
+        // Sem selo e sem rótulo não há moldura: sobra o pill do número.
+        // A legenda vem depois e traz a amostra dela, que não é chip.
+        const drawn = markup.slice(0, markup.indexOf('LEGENDA'));
+
         expect(chipRects(markup)).toEqual([]);
-        expect(seqDots(markup)).toHaveLength(2);
+        expect(seqPills(drawn)).toHaveLength(2);
         expect(markup).toContain('>1</text>');
         expect(markup).toContain('>2</text>');
 
-        // Sem número e sem texto não sobra nem o círculo.
+        // Sem número e sem texto não sobra nem o pill.
         const silent = svgOf(nodes.slice(0, 2), [edgeFixture('e1', 'a', 'b')]);
 
-        expect(seqDots(silent)).toEqual([]);
+        expect(seqPills(silent)).toEqual([]);
     });
 
     it('svg_labels_wrap_to_at_most_three_lines', () => {
@@ -312,11 +403,11 @@ describe('svgLegend', () => {
             nodeFixture('c', 300, 300, 'sql'),
         ];
         const edges = [
-            typed('e1', 'a', 'b', 'http'),
-            edgeFixture('e2', 'b', 'c'),
+            numbered(typed('e1', 'a', 'b', 'http'), 1),
+            numbered(edgeFixture('e2', 'b', 'c'), 2),
             typed('e3', 'b', 'a', 'event'),
         ];
-        const data = legendOf(nodes, edges, 'flow');
+        const data = legendOf(nodes, edges);
 
         // Abaixo do desenho: os blocos terminam em 386, e a legenda vem 30 depois.
         const legend = svgLegend(data, 0, 386 + LEGEND_GAP, palette);
@@ -340,11 +431,19 @@ describe('svgLegend', () => {
         expect(legend.markup).toContain(
             '>clique na seta e escolha o protocolo</text>',
         );
-        expect(legend.markup).toContain(`>${data.sequence?.name}</text>`);
-        expect(legend.markup).toContain(`>${data.sequence?.text}</text>`);
+        // A seção de sequência sai da mesma constante que a tela importa.
+        expect(data.sequence).toEqual({ name: ORDER_NAME, text: ORDER_GLOSS });
+        expect(legend.markup).toContain(`>${ORDER_NAME}</text>`);
+        expect(legend.markup).toContain(`>${ORDER_GLOSS}</text>`);
+
+        // A amostra da legenda é o mesmo pill do chip, em cor neutra.
+        expect(seqPills(legend.markup)).toEqual([
+            { x: 19 - seqPillWidth(1) / 2, width: seqPillWidth(1) },
+        ]);
+        expect(legend.markup).toContain(`fill="${palette['--ink-3']}"`);
 
         // A do arquivo é a mesma legenda da tela, colada abaixo do desenho.
-        expect(svgOf(nodes, edges, 'flow')).toContain(legend.markup);
+        expect(svgOf(nodes, edges)).toContain(legend.markup);
     });
 
     it('svg_legend_samples_are_neutral_colored', () => {

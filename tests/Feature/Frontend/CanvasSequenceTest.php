@@ -65,14 +65,30 @@ it('lê os três modos do catálogo do servidor, sem lista paralela no cliente',
         ->toContain(':sequence-modes="engine.sequenceModes"');
 });
 
-it('desenha o número dentro do chip, na cor da categoria da origem', function () {
-    expect(frontendSource('components/prancheta/EdgeChip.vue'))
-        ->toContain('data-testid="edge-chip-seq"')
-        ->toContain('rounded-full')
-        ->toContain("border: '1.2px solid var(--ec)',")
-        ->toContain('v-text="seq.index"');
-
+it('desenha o número dentro do chip, num pill sólido na cor da origem', function () {
     $chip = frontendSource('components/prancheta/EdgeChip.vue');
+
+    expect($chip)
+        ->toContain('order?: number | null;')
+        ->toContain('{ order: null },')
+        ->toContain('data-testid="edge-chip-seq"')
+        ->toContain('v-if="order !== null"')
+        ->toContain('rounded-full')
+        ->toContain('v-text="order"')
+        ->not->toContain('SequenceNumber');
+
+    // Pill sólido: o fundo é a cor da seta e o número sai na cor do papel.
+    preg_match('/const pillStyle = computed\(\(\) => \(\{(.*?)\n\}\)\);/s', $chip, $pill);
+
+    expect($pill[1])
+        ->toContain("background: 'var(--ec)',")
+        ->toContain("color: 'var(--paper)',")
+        ->toContain('minWidth: `${seqPillWidth(props.order ?? 1)}px`,');
+
+    // O rótulo continua sendo caixa de texto: a distinção não é só de cor.
+    expect($chip)->toContain('data-testid="edge-chip-label"')
+        ->and(substr_count($chip, 'bg-sd-accent-soft'))->toBe(1);
+
     $template = substr($chip, strpos($chip, '<template>'));
 
     $positions = array_map(
@@ -82,11 +98,25 @@ it('desenha o número dentro do chip, na cor da categoria da origem', function (
 
     expect($positions)->toBe(array_values(array_filter($positions)))
         ->and($positions)->toBe(collect($positions)->sort()->values()->all());
+});
 
+it('desenha a partir do campo order da aresta, respeitando a bandeira', function () {
     expect(frontendSource('pages/Board.vue'))
-        ->toContain('const numbers = engine.seqMap();')
-        ->toContain('seq: numbers[edge.id] ?? null,')
-        ->toContain(':seq="wire.seq"');
+        ->toContain('order: engine.showConnectionOrder ? edge.order : null,')
+        ->toContain(':order="wire.order"')
+        ->not->toContain('engine.seqMap()');
+
+    expect(frontendSource('canvas/engine.ts'))
+        ->toMatch('/get showConnectionOrder\(\): boolean \{\s*return this\.state\.showConnectionOrder;\s*\}/')
+        ->toMatch('/setShowConnectionOrder\(value: boolean\): boolean \{\s*if \(this\.state\.showConnectionOrder === value\) \{\s*return false;\s*\}\s*this\.state\.showConnectionOrder = value;\s*return true;\s*\}/');
+
+    // A bandeira é estado de sessão, não conteúdo do diagrama.
+    expect(frontendSource('canvas/types.ts'))
+        ->toMatch('/export type SessionState = \{\s*nodes: Node\[\];\s*edges: Edge\[\];\s*seqMode: SequenceMode;\s*showConnectionOrder: boolean;\s*\}/')
+        ->toMatch('/export type DiagramSnapshot = \{\s*nodes: Node\[\];\s*edges: Edge\[\];\s*\}/');
+
+    expect(frontendSource('canvas/undo.ts'))
+        ->toContain('JSON.stringify({ nodes: diagram.nodes, edges: diagram.edges })');
 });
 
 it('abre o menu dos três modos no botão da barra de zoom', function () {
@@ -195,4 +225,7 @@ it('cobre no Vitest cada teste que a fase pede', function (string $name) {
     'autoNumber_is_deterministic_over_50_consecutive_runs',
     'autoNumber_renumbers_the_payload_limit_under_16ms',
     'autoNumberOrder_stacks_a_single_undo_step',
+    'toggling_show_connection_order_does_not_push_undo',
+    'undo_does_not_revert_show_connection_order',
+    'diagram_snapshot_serializes_only_nodes_and_edges',
 ]);

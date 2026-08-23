@@ -14,11 +14,12 @@ it('monta o SVG a partir do mesmo estado que a tela desenha', function () {
     expect(frontendSource('canvas/svg.ts'))
         ->toContain('export function buildSVG(context: SvgContext): string {')
         ->toContain('const bounds = diagramBounds(state.nodes, heights);')
-        ->toContain('const numbers = seqMap(state.seqMode, state.edges, state.nodes, index);')
-        ->toContain('const geometry = bez(edge, state.nodes, heights);');
+        ->toContain('const geometry = bez(edge, state.nodes, heights);')
+        ->toContain('state.showConnectionOrder ? edge.order : null,')
+        ->not->toContain('seqMap(');
 
     expect(frontendSource('canvas/engine.ts'))
-        ->toMatch('/toSVG\(palette: SvgPalette\): string \{\s*return buildSVG\(\{\s*state: this\.state,\s*index: this\.index,\s*linkIndex: this\.linkIndex,\s*palette,\s*modes: this\.sequenceModeOptions,\s*heights: this\.heights,\s*\}\);\s*\}/');
+        ->toMatch('/toSVG\(palette: SvgPalette\): string \{\s*return buildSVG\(\{\s*state: this\.state,\s*index: this\.index,\s*linkIndex: this\.linkIndex,\s*palette,\s*heights: this\.heights,\s*\}\);\s*\}/');
 });
 
 it('congela os números do enquadramento e do chip', function (string $declaration) {
@@ -28,7 +29,10 @@ it('congela os números do enquadramento e do chip', function (string $declarati
     'vão até a legenda' => ['export const LEGEND_GAP = 30;'],
     'quebra do rótulo' => ['export const LABEL_WRAP_CHARS = 18;'],
     'linhas do rótulo' => ['export const MAX_LABEL_LINES = 3;'],
-    'alargamento do chip numerado' => ['export const SEQ_LEAD = 20;'],
+    'altura do pill do número' => ['export const SEQ_PILL_HEIGHT = 15;'],
+    'respiro do pill do número' => ['export const SEQ_PILL_PADDING = 4;'],
+    'largura de um dígito' => ['export const SEQ_DIGIT_WIDTH = 6;'],
+    'vão entre pill e texto do chip' => ['export const SEQ_LEAD_GAP = 5;'],
     'largura mínima da legenda' => ['export const LEGEND_MIN_WIDTH = 90;'],
 ]);
 
@@ -69,12 +73,52 @@ it('resolve as cores do tema em vez de deixar variáveis CSS no arquivo', functi
 
 it('monta a legenda do arquivo a partir da mesma legendData da tela', function () {
     expect(frontendSource('canvas/svg.ts'))
-        ->toContain('legendData(state, index, linkIndex, context.modes ?? []),')
+        ->toContain('legendData(state, index, linkIndex),')
         ->toContain('export function svgLegend(')
         ->toContain('if (data.empty) {')
         ->toContain('return { width: 0, height: 0, markup: \'\' };')
         ->toContain('name: UNTYPED_NAME,')
-        ->toContain('gloss: UNTYPED_GLOSS,');
+        ->toContain('gloss: UNTYPED_GLOSS,')
+        ->toContain('name: ORDER_NAME,')
+        ->toContain('gloss: ORDER_GLOSS,');
+});
+
+it('alarga o chip do arquivo conforme os dígitos do número, sem constante fixa', function () {
+    $source = frontendSource('canvas/svg.ts');
+
+    expect($source)
+        ->toMatch('/export function seqPillWidth\(order: number\): number \{\s*return Math\.max\(\s*SEQ_PILL_HEIGHT,\s*String\(order\)\.length \* SEQ_DIGIT_WIDTH \+ SEQ_PILL_PADDING \* 2,\s*\);\s*\}/')
+        ->toMatch('/export function seqLead\(order: number\): number \{\s*return seqPillWidth\(order\) \+ SEQ_LEAD_GAP;\s*\}/')
+        ->toContain('const lead = order === null ? 0 : seqLead(order);')
+        ->not->toContain('export const SEQ_LEAD =');
+});
+
+it('desenha o número do arquivo como pill sólido, na cor da seta', function () {
+    $source = frontendSource('canvas/svg.ts');
+
+    preg_match('/function seqPillMarkup\((.*?)\n\}/s', $source, $pill);
+
+    expect($pill[1])
+        ->toContain('rx="${SEQ_PILL_HEIGHT / 2}" fill="${color}"')
+        ->toContain('fill="${paper}">${value}</text>');
+
+    // A amostra da legenda é o mesmo pill, e o chip da seta também.
+    expect($source)
+        ->toMatch('/function seqSampleMarkup\([^)]*\): string \{\s*return seqPillMarkup\(/')
+        ->toContain(': seqPillMarkup(mx, my, order, color, paper);')
+        ->not->toContain('<circle');
+});
+
+it('desenha na tela o mesmo pill do arquivo, pela mesma constante', function () {
+    expect(frontendSource('components/prancheta/EdgeChip.vue'))
+        ->toContain("} from '@/canvas/svg';")
+        ->toContain('minWidth: `${seqPillWidth(props.order ?? 1)}px`,')
+        ->toContain('height: `${SEQ_PILL_HEIGHT}px`,')
+        ->toContain('paddingInline: `${SEQ_PILL_PADDING}px`,');
+
+    expect(frontendSource('components/prancheta/LegendContent.vue'))
+        ->toContain("import { SEQ_PILL_HEIGHT, SEQ_PILL_PADDING, seqPillWidth } from '@/canvas/svg';")
+        ->toContain('minWidth: `${seqPillWidth(1)}px`,');
 });
 
 it('mantém a amostra de traço da legenda neutra, como na tela', function () {
@@ -161,8 +205,12 @@ it('cobre no Vitest cada teste que a fase pede', function (string $name) {
     'svg_width_accommodates_a_wider_legend',
     'svg_edge_stroke_matches_source_category_color',
     'svg_bidirectional_edge_has_two_arrowheads',
-    'svg_chip_with_number_widens_by_20px',
-    'svg_bare_edge_with_number_renders_only_the_circle',
+    'svg_chip_widens_by_the_pill_lead',
+    'svg_pill_grows_with_the_digit_count',
+    'svg_pill_is_solid_in_the_edge_color',
+    'svg_hides_every_badge_when_show_connection_order_is_off',
+    'svg_edge_without_order_has_no_badge',
+    'svg_bare_edge_with_number_renders_only_the_pill',
     'svg_labels_wrap_to_at_most_three_lines',
     'svg_legend_matches_screen_legend_content',
     'svg_legend_samples_are_neutral_colored',

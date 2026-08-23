@@ -19,6 +19,7 @@ export function sessionRecordFixture(
         nodes: [],
         edges: [],
         seqMode: 'out',
+        showConnectionOrder: true,
         checks: {},
         notes: '',
         estimate: {
