@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="160" viewBox="0 0 320 80" fill="none">
+  <g transform="translate(12 24)">
+    <path d="M9 9h14M9 9v14M9 23h14M23 9v14" stroke="#1e6f6c" stroke-width="2"></path>
+    <rect x="3" y="3" width="12" height="12" rx="3" fill="#3ddad7"></rect>
+    <rect x="17" y="17" width="12" height="12" rx="3" fill="#E6EDF3"></rect>
+  </g>
+  <text x="56" y="41" font-family="Space Grotesk, Helvetica Neue, Arial, sans-serif" font-size="27" font-weight="700" letter-spacing="-0.6" fill="#E6EDF3">max<tspan fill="#3ddad7">draw</tspan></text>
+  <text x="57" y="56" font-family="IBM Plex Mono, ui-monospace, monospace" font-size="8" letter-spacing="1.7" fill="#5C6D7E">TREINO DE SYSTEM DESIGN</text>
+</svg>

@@ -6,6 +6,7 @@ Before planning or editing, find the row whose globs match the file's path and r
 | --- | --- |
 | resources/js/pages/auth/** | .ai/rules/auth.md |
 | resources/js/canvas/** | .ai/rules/canvas.md |
+| resources/js/components/** | .ai/rules/components.md |
 | resources/js/composables/useStageInteraction.ts | .ai/rules/composables.md |
 | config/fortify.php | .ai/rules/config.md |
 | app/Http/Controllers/** | .ai/rules/controllers.md |

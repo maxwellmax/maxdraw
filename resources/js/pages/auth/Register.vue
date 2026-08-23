@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Form, Head, Link } from '@inertiajs/vue3';
+import BrandLockup from '@/components/BrandLockup.vue';
 import InputError from '@/components/InputError.vue';
 import PranchetaButton from '@/components/prancheta/PranchetaButton.vue';
 import PranchetaInput from '@/components/prancheta/PranchetaInput.vue';
@@ -21,6 +22,8 @@ defineOptions({
 
 <template>
     <Head title="Criar conta" />
+
+    <BrandLockup data-testid="brand-lockup" class="mb-6" />
 
     <Form
         v-bind="store.form()"

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Form, Head, Link } from '@inertiajs/vue3';
+import BrandLockup from '@/components/BrandLockup.vue';
 import InputError from '@/components/InputError.vue';
 import PasskeyVerify from '@/components/PasskeyVerify.vue';
 import PranchetaButton from '@/components/prancheta/PranchetaButton.vue';
@@ -31,6 +32,8 @@ defineProps<{
 
 <template>
     <Head title="Entrar" />
+
+    <BrandLockup data-testid="brand-lockup" class="mb-6" />
 
     <div
         v-if="status"

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppLogoIcon from '@/components/AppLogoIcon.vue';
 import BoardUserMenu from '@/components/prancheta/BoardUserMenu.vue';
 import PranchetaButton from '@/components/prancheta/PranchetaButton.vue';
 import type { ChipState } from '@/components/prancheta/StateChip.vue';
@@ -28,26 +29,15 @@ defineEmits<{
         class="z-30 col-span-full flex items-center gap-2.5 border-b border-sd-line bg-sd-panel px-3"
     >
         <div
+            role="img"
+            aria-label="maxdraw — treino de system design"
             class="flex items-center gap-2 border-r border-sd-line pr-2.5 text-sm font-bold tracking-[-0.01em] text-sd-ink"
         >
-            <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.7"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                class="text-sd-accent"
+            <AppLogoIcon
+                class="size-[18px] shrink-0 text-sd-accent"
                 aria-hidden="true"
-            >
-                <rect x="3" y="3" width="7" height="7" rx="1.5" />
-                <rect x="14" y="14" width="7" height="7" rx="1.5" />
-                <path d="M10 6.5h2.5a1.5 1.5 0 0 1 1.5 1.5v9.5" />
-                <path d="M6.5 10v3" />
-            </svg>
-            <span class="whitespace-nowrap">Prancheta</span>
+            />
+            <span class="whitespace-nowrap">maxdraw</span>
         </div>
 
         <PranchetaButton

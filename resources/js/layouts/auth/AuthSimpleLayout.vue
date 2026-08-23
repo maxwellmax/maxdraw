@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { Link } from '@inertiajs/vue3';
-import AppLogoIcon from '@/components/AppLogoIcon.vue';
-import { home } from '@/routes';
-
 /*
  * As telas de conta usam os tokens da prancheta (Phase 6): claro e escuro saem
  * do mesmo `data-theme` do resto do app, sem variante de tema do starter
  * kit nem cor literal.
+ *
+ * O layout não carrega marca: quem precisa dela renderiza o lockup na própria
+ * página (Login e Register), o que evita a marca duplicada e deixa as demais
+ * telas de conta apenas com título e descrição.
  */
 
 defineProps<{
@@ -23,17 +23,6 @@ defineProps<{
         <div class="w-full max-w-sm">
             <div class="flex flex-col gap-7">
                 <div class="flex flex-col items-center gap-4">
-                    <Link
-                        :href="home()"
-                        class="flex flex-col items-center gap-2 font-medium text-sd-accent"
-                    >
-                        <div
-                            class="mb-1 flex h-9 w-9 items-center justify-center rounded-md"
-                        >
-                            <AppLogoIcon class="size-9 fill-current" />
-                        </div>
-                        <span class="sr-only">{{ title }}</span>
-                    </Link>
                     <div class="space-y-2 text-center">
                         <h1
                             class="text-lg font-bold tracking-[-0.01em] text-sd-ink"

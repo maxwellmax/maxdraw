@@ -1,0 +1,48 @@
+/*
+  Seleção da variante do lockup maxdraw sem JavaScript.
+
+  Os três estados espelham o que `prancheta.css` já faz com os tokens: o tema
+  escolhido explicitamente vive em `[data-theme='dark']` / `[data-theme='light']`
+  e a ausência do atributo (estado padrão, antes de o usuário tocar no botão)
+  cai na media query. A media query vem antes dos seletores de atributo de
+  propósito — as três regras têm a mesma especificidade, então quem foi
+  escolhido a dedo precisa ganhar por ordem de fonte.
+
+  Estas regras não podem morar em `prancheta.css`: `cssTokens()` casa o primeiro
+  bloco do seletor e `ThemeTokensTest` compara esse bloco token a token com o
+  protótipo congelado.
+*/
+
+.brand-lockup__dark {
+    display: none;
+}
+
+.brand-lockup__light {
+    display: block;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme='light']) .brand-lockup__dark {
+        display: block;
+    }
+
+    :root:not([data-theme='light']) .brand-lockup__light {
+        display: none;
+    }
+}
+
+:root[data-theme='dark'] .brand-lockup__dark {
+    display: block;
+}
+
+:root[data-theme='dark'] .brand-lockup__light {
+    display: none;
+}
+
+:root[data-theme='light'] .brand-lockup__dark {
+    display: none;
+}
+
+:root[data-theme='light'] .brand-lockup__light {
+    display: block;
+}
