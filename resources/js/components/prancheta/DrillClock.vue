@@ -1,27 +1,30 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-
-export type PhaseSegment = {
-    weight: number;
-    state: 'done' | 'current' | 'todo';
-    progress?: number;
-};
+import type { ClockTone, PhaseSegment } from '@/prancheta/clock';
+import {
+    DEFAULT_DURATION_MINUTES,
+    formatClock,
+    totalSeconds,
+} from '@/prancheta/clock';
 
 const props = withDefaults(
     defineProps<{
         elapsedSeconds?: number;
         durationMinutes?: number;
+        durations: readonly number[];
         running?: boolean;
-        durations?: readonly number[];
+        finished?: boolean;
+        tone?: ClockTone;
         phaseNumber?: number | null;
         phaseName?: string | null;
         segments?: readonly PhaseSegment[];
     }>(),
     {
         elapsedSeconds: 0,
-        durationMinutes: 45,
+        durationMinutes: DEFAULT_DURATION_MINUTES,
         running: false,
-        durations: () => [30, 45, 60],
+        finished: false,
+        tone: 'normal',
         phaseNumber: null,
         phaseName: null,
         segments: () => [],
@@ -34,27 +37,30 @@ defineEmits<{
     'select-duration': [minutes: number];
 }>();
 
-function formatClock(totalSeconds: number): string {
-    const safe = Math.max(0, Math.floor(totalSeconds));
-    const minutes = Math.floor(safe / 60);
-    const seconds = safe % 60;
-
-    return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-}
-
 const elapsed = computed(() => formatClock(props.elapsedSeconds));
-const total = computed(() => formatClock(props.durationMinutes * 60));
+const total = computed(() => formatClock(totalSeconds(props.durationMinutes)));
+
+const elapsedTone = computed(
+    () =>
+        ({
+            normal: 'text-sd-ink',
+            warn: 'text-sd-warn',
+            over: 'text-sd-crit',
+        })[props.tone],
+);
 </script>
 
 <template>
     <div
         data-testid="clock"
+        :data-tone="tone"
         class="border-b border-sd-line bg-sd-panel px-4 pt-3.5 pb-3"
     >
         <div class="flex items-baseline gap-2.5">
             <div
                 data-testid="clock-elapsed"
-                class="font-mono text-[34px] leading-none font-medium tracking-[-0.02em] text-sd-ink tabular-nums"
+                class="font-mono text-[34px] leading-none font-medium tracking-[-0.02em] tabular-nums"
+                :class="elapsedTone"
             >
                 {{ elapsed }}
             </div>
@@ -64,15 +70,23 @@ const total = computed(() => formatClock(props.durationMinutes * 60));
             >
                 de {{ total }}
             </div>
+            <div
+                v-if="finished"
+                data-testid="clock-over"
+                class="font-mono text-[10px] font-semibold tracking-wide text-sd-crit uppercase"
+            >
+                tempo esgotado
+            </div>
             <div class="ml-auto flex gap-1">
                 <button
                     type="button"
                     data-testid="clock-toggle"
+                    :disabled="finished"
                     :title="running ? 'Pausar' : 'Iniciar'"
                     :aria-label="
                         running ? 'Pausar o cronômetro' : 'Iniciar o cronômetro'
                     "
-                    class="grid size-[30px] cursor-pointer place-items-center rounded-md border border-sd-accent bg-sd-accent text-sd-accent-ink hover:border-sd-accent-2 hover:bg-sd-accent-2 [&_svg]:size-3.5"
+                    class="grid size-[30px] cursor-pointer place-items-center rounded-md border border-sd-accent bg-sd-accent text-sd-accent-ink hover:border-sd-accent-2 hover:bg-sd-accent-2 disabled:cursor-not-allowed disabled:border-sd-line-2 disabled:bg-transparent disabled:text-sd-ink-3 [&_svg]:size-3.5"
                     @click="$emit('toggle')"
                 >
                     <svg
@@ -121,10 +135,13 @@ const total = computed(() => formatClock(props.durationMinutes * 60));
             data-testid="clock-phase"
             class="mt-[9px] flex items-center gap-[7px] text-xs text-sd-ink-2"
         >
-            <span class="font-mono text-[10px] font-semibold text-sd-accent">
+            <span
+                data-testid="clock-phase-number"
+                class="font-mono text-[10px] font-semibold text-sd-accent"
+            >
                 {{ String(phaseNumber ?? 0).padStart(2, '0') }}
             </span>
-            <span>{{ phaseName }}</span>
+            <span data-testid="clock-phase-name">{{ phaseName }}</span>
         </div>
 
         <div
@@ -134,6 +151,8 @@ const total = computed(() => formatClock(props.durationMinutes * 60));
             <span
                 v-for="(segment, index) in segments"
                 :key="index"
+                data-testid="clock-slice"
+                :data-state="segment.state"
                 class="relative block h-full overflow-hidden rounded-sm bg-sd-line-2"
                 :class="{ 'bg-sd-accent opacity-45': segment.state === 'done' }"
                 :style="{ flex: segment.weight }"
@@ -141,7 +160,7 @@ const total = computed(() => formatClock(props.durationMinutes * 60));
                 <i
                     v-if="segment.state === 'current'"
                     class="absolute inset-y-0 left-0 block bg-sd-accent"
-                    :style="{ width: `${(segment.progress ?? 0) * 100}%` }"
+                    :style="{ width: `${segment.progress * 100}%` }"
                 />
             </span>
         </div>

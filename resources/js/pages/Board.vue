@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3';
 import type { ComponentPublicInstance } from 'vue';
-import { computed, nextTick, onBeforeUnmount, reactive, ref, watch } from 'vue';
+import { computed, nextTick, reactive, ref, watch } from 'vue';
 import { CanvasEngine } from '@/canvas/engine';
 import { ptAt } from '@/canvas/geometry';
 import type { EdgeFlag, RefusalReason } from '@/canvas/types';
@@ -22,10 +22,17 @@ import PranchetaButton from '@/components/prancheta/PranchetaButton.vue';
 import StageCanvas from '@/components/prancheta/StageCanvas.vue';
 import ToastHost from '@/components/prancheta/ToastHost.vue';
 import { createSessionStore, useAutosave } from '@/composables/useAutosave';
+import { useClock } from '@/composables/useClock';
 import { useLegend } from '@/composables/useLegend';
 import { useStageInteraction } from '@/composables/useStageInteraction';
 import { useTheme } from '@/composables/useTheme';
 import { useToast } from '@/composables/useToast';
+import {
+    bounds,
+    curPhase,
+    durationsFrom,
+    phaseSegments,
+} from '@/prancheta/clock';
 import type { SessionStore } from '@/prancheta/session';
 import type { DrillTabId } from '@/prancheta/tabs';
 import { DEFAULT_DRILL_TAB } from '@/prancheta/tabs';
@@ -62,9 +69,9 @@ const engine = reactive(
 
 const { autosave, saveNow } = useAutosave(store);
 
-const activeTab = ref<DrillTabId>(DEFAULT_DRILL_TAB);
+const { clock } = useClock(store, autosave);
 
-const running = ref(false);
+const activeTab = ref<DrillTabId>(DEFAULT_DRILL_TAB);
 
 const openSheet = ref<'problem' | 'sessions' | null>(null);
 
@@ -171,6 +178,34 @@ const edgeBar = computed(() => {
     };
 });
 
+/**
+ * O roteiro fatiado: os pesos das cinco fases do catálogo aplicados sobre a
+ * duração escolhida. Trocar a duração recalcula as fatias sem tocar no tempo
+ * já decorrido (US-6.1, US-2.3).
+ */
+const phaseIndex = computed(() =>
+    curPhase(
+        store.elapsedSeconds,
+        bounds(store.durationMinutes, props.catalog.phases),
+    ),
+);
+
+const currentPhase = computed(
+    () => props.catalog.phases[phaseIndex.value] ?? null,
+);
+
+const segments = computed(() =>
+    phaseSegments(
+        store.elapsedSeconds,
+        store.durationMinutes,
+        props.catalog.phases,
+    ),
+);
+
+const durations = computed(() =>
+    durationsFrom(props.catalog.session_durations),
+);
+
 const sheetTitle = computed(() =>
     openSheet.value === 'sessions' ? 'Sessões' : 'Escolher um problema',
 );
@@ -180,33 +215,6 @@ const sheetDescription = computed(() =>
         ? 'Abra uma sessão salva para restaurar o treino de onde parou.'
         : 'Cada um vem com enunciado, requisitos e a escala alvo. O cronômetro zera.',
 );
-
-let ticker: ReturnType<typeof setInterval> | null = null;
-
-function stopTicker(): void {
-    if (ticker) {
-        clearInterval(ticker);
-        ticker = null;
-    }
-}
-
-watch(running, (isRunning) => {
-    stopTicker();
-
-    if (isRunning) {
-        ticker = setInterval(
-            () => store.setElapsedSeconds(store.elapsedSeconds + 1),
-            1000,
-        );
-    }
-});
-
-onBeforeUnmount(stopTicker);
-
-function resetClock(): void {
-    running.value = false;
-    store.setElapsedSeconds(0);
-}
 
 function exportSvg(): void {
     if (engine.isEmpty) {
@@ -417,10 +425,16 @@ function placeNode(slug: string): void {
                     <DrillClock
                         :elapsed-seconds="store.elapsedSeconds"
                         :duration-minutes="store.durationMinutes"
-                        :running="running"
-                        @toggle="running = !running"
-                        @reset="resetClock"
-                        @select-duration="store.setDurationMinutes($event)"
+                        :durations="durations"
+                        :running="clock.running"
+                        :finished="clock.finished"
+                        :tone="clock.tone"
+                        :phase-number="currentPhase ? phaseIndex + 1 : null"
+                        :phase-name="currentPhase?.name ?? null"
+                        :segments="segments"
+                        @toggle="clock.toggle()"
+                        @reset="clock.reset()"
+                        @select-duration="clock.setDurationMinutes($event)"
                     />
                 </template>
             </DrillPanel>
