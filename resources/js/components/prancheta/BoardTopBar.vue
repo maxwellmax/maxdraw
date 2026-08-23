@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import BoardUserMenu from '@/components/prancheta/BoardUserMenu.vue';
 import PranchetaButton from '@/components/prancheta/PranchetaButton.vue';
 import type { ChipState } from '@/components/prancheta/StateChip.vue';
 import StateChip from '@/components/prancheta/StateChip.vue';
@@ -159,5 +160,7 @@ defineEmits<{
             </svg>
             Salvar
         </PranchetaButton>
+
+        <BoardUserMenu data-testid="user-menu" />
     </div>
 </template>
