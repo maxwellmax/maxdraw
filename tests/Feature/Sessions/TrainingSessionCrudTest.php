@@ -1,10 +1,13 @@
 <?php
 
+use App\Http\Requests\TrainingSessionStoreRequest;
+use App\Models\ChecklistItem;
 use App\Models\Problem;
 use App\Models\TrainingSession;
 use App\Models\User;
 use App\Services\SessionCreator;
 use Illuminate\Support\Facades\Route;
+use Inertia\Testing\AssertableInertia;
 
 /**
  * Criar, abrir e excluir sessão (Phase 8.2). A sessão corrente é sempre a de
@@ -72,6 +75,74 @@ test('store_creates_empty_session_with_defaults', function () {
         ->assertJsonMissingPath('data.user_id');
 
     expect($session->user_id)->toBe($user->id);
+});
+
+test('a_session_is_born_without_a_name_and_the_creation_contract_ignores_one', function () {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->postJson(route('sessions.store'))
+        ->assertCreated()
+        ->assertJsonPath('data.name', null);
+
+    $this->actingAs($user)
+        ->postJson(route('sessions.store'), ['name' => 'Feed de rede social'])
+        ->assertCreated()
+        ->assertJsonPath('data.name', null);
+
+    expect(TrainingSession::query()->orderBy('id')->pluck('name')->all())->toBe([null, null]);
+});
+
+test('the_creation_contract_still_asks_for_exactly_the_problem_and_the_duration', function () {
+    expect(array_keys((new TrainingSessionStoreRequest)->rules()))->toBe(['problem_id', 'duration_minutes']);
+});
+
+test('the_session_the_board_creates_for_a_newcomer_has_no_name', function () {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->get(route('board'))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Board')
+            ->where('session.name', null)
+        );
+
+    expect(TrainingSession::query()->sole()->name)->toBeNull();
+});
+
+test('the_name_travels_on_every_session_payload_and_the_checks_map_keeps_its_keys', function () {
+    $user = User::factory()->create();
+    $item = ChecklistItem::query()->firstOrFail();
+
+    $named = TrainingSession::factory()->create([
+        'user_id' => $user->id,
+        'name' => 'Feed de rede social',
+        'checks' => [$item->id => true],
+        'last_opened_at' => now(),
+    ]);
+
+    TrainingSession::factory()->create([
+        'user_id' => $user->id,
+        'name' => null,
+        'last_opened_at' => now()->subHour(),
+    ]);
+
+    $sheet = $this->actingAs($user)
+        ->getJson(route('sessions.index'))
+        ->assertOk()
+        ->assertJsonPath('data.0.name', 'Feed de rede social')
+        ->assertJsonPath('data.1.name', null);
+
+    expect($sheet->json('data'))->toHaveCount(2)->each->toHaveKey('name');
+
+    foreach (['sessions.show' => 'getJson', 'sessions.open' => 'postJson'] as $routeName => $verb) {
+        $this->actingAs($user)
+            ->{$verb}(route($routeName, $named))
+            ->assertOk()
+            ->assertJsonPath('data.name', 'Feed de rede social')
+            ->assertJsonPath('data.checks.'.$item->id, true);
+    }
 });
 
 test('store_accepts_a_problem_and_a_duration_from_the_lookup', function (int $minutes) {

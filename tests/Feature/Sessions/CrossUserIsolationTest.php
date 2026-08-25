@@ -31,6 +31,7 @@ function sessionOfAnotherUser(): TrainingSession
 {
     return TrainingSession::factory()->create([
         'user_id' => User::factory()->create()->id,
+        'name' => 'Feed do dono',
         'notes' => FOREIGN_SECRET,
     ]);
 }
@@ -46,7 +47,7 @@ test('cross_user_read_write_delete_is_blocked_on_every_session_route', function 
     $response = $this->actingAs($intruder)->json(
         $method,
         $needsSession ? route($routeName, $session) : route($routeName),
-        ['user_id' => $owner->id, 'notes' => 'invadido', 'elapsed_seconds' => 999],
+        ['user_id' => $owner->id, 'name' => 'invadido', 'notes' => 'invadido', 'elapsed_seconds' => 999],
     );
 
     match ($needsSession) {
