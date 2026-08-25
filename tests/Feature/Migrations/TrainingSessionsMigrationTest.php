@@ -39,7 +39,7 @@ test('users_table_matches_the_schema', function () {
 test('training_sessions_table_matches_the_schema', function () {
     expect(Schema::hasTable('training_sessions'))->toBeTrue()
         ->and(Schema::getColumnListing('training_sessions'))->toEqualCanonicalizing([
-            'id', 'user_id', 'problem_id', 'session_duration_id', 'show_connection_order',
+            'id', 'user_id', 'problem_id', 'name', 'session_duration_id', 'show_connection_order',
             'elapsed_seconds', 'notes', 'nodes', 'edges', 'checks', 'estimate',
             'last_opened_at', 'created_at', 'updated_at',
         ])
@@ -49,6 +49,7 @@ test('training_sessions_table_matches_the_schema', function () {
     $columns = collect(Schema::getColumns('training_sessions'))->keyBy('name');
 
     expect($columns['problem_id']['nullable'])->toBeTrue()
+        ->and($columns['name']['nullable'])->toBeTrue()
         ->and($columns['notes']['nullable'])->toBeTrue()
         ->and($columns['last_opened_at']['nullable'])->toBeFalse()
         ->and($columns['nodes']['nullable'])->toBeFalse()
@@ -179,6 +180,18 @@ function legacySequenceModeIds(): array
 }
 
 /**
+ * Quantas migrations precisam voltar para o banco chegar ao schema anterior às
+ * duas migrations da ordem explícita. Contado no repositório em vez de fixado
+ * em dois: toda migration acrescentada depois delas entra no caminho de volta.
+ */
+function stepsBackToBeforeTheOrderMigrations(): int
+{
+    return DB::table('migrations')
+        ->where('migration', '>=', '2026_08_23_085307_add_show_connection_order_to_training_sessions_table')
+        ->count();
+}
+
+/**
  * Volta o banco ao schema anterior à feature e o semeia com sessões antigas,
  * alternadas entre os dois modos de numeração.
  *
@@ -186,7 +199,7 @@ function legacySequenceModeIds(): array
  */
 function seedTheBaseBeforeTheOrderMigrations(int $sessions): array
 {
-    test()->artisan('migrate:rollback', ['--step' => 2])->assertSuccessful();
+    test()->artisan('migrate:rollback', ['--step' => stepsBackToBeforeTheOrderMigrations()])->assertSuccessful();
 
     $userId = User::factory()->create()->id;
     $durationId = DB::table('session_durations')->insertGetId(['minutes' => 45, 'is_default' => true, 'position' => 2]);
@@ -264,7 +277,7 @@ test('rolling_the_order_migrations_back_never_drops_a_diagram', function () {
 
     $before = diagramsOnDisk();
 
-    $this->artisan('migrate:rollback', ['--step' => 2])->assertSuccessful();
+    $this->artisan('migrate:rollback', ['--step' => stepsBackToBeforeTheOrderMigrations()])->assertSuccessful();
 
     expect(Schema::hasTable('sequence_modes'))->toBeTrue()
         ->and(Schema::hasColumn('training_sessions', 'sequence_mode_id'))->toBeTrue()

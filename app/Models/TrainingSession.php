@@ -21,6 +21,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $id
  * @property int $user_id
  * @property int|null $problem_id
+ * @property string|null $name
  * @property int $session_duration_id
  * @property bool $show_connection_order
  * @property int $elapsed_seconds
@@ -40,6 +41,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 #[Fillable([
     'user_id',
     'problem_id',
+    'name',
     'session_duration_id',
     'show_connection_order',
     'elapsed_seconds',
