@@ -204,6 +204,7 @@ test('the_board_payload_never_leaks_the_owner_column', function () {
     expect(array_keys($session))->toBe([
         'id',
         'problem_id',
+        'name',
         'duration_minutes',
         'show_connection_order',
         'elapsed_seconds',

@@ -20,7 +20,7 @@ class SessionStateWriter
     public function write(TrainingSession $session, array $payload): TrainingSession
     {
         return DB::transaction(function () use ($session, $payload): TrainingSession {
-            $session->fill(Arr::only($payload, ['problem_id', 'notes', 'elapsed_seconds', 'show_connection_order', 'nodes', 'edges', 'checks', 'estimate']));
+            $session->fill(Arr::only($payload, ['problem_id', 'name', 'notes', 'elapsed_seconds', 'show_connection_order', 'nodes', 'edges', 'checks', 'estimate']));
 
             if (array_key_exists('duration_minutes', $payload)) {
                 $session->session_duration_id = $this->durationId((int) $payload['duration_minutes']);
