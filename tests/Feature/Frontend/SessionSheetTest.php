@@ -17,16 +17,19 @@ it('coloca cada peça da folha de sessões no arquivo que a implementa', functio
     ['components/prancheta/SessionList.vue', 'session-open'],
     ['components/prancheta/SessionList.vue', 'session-delete'],
     ['components/prancheta/SessionList.vue', 'session-empty'],
+    ['components/prancheta/SessionList.vue', 'session-rename'],
+    ['components/prancheta/SessionList.vue', 'session-rename-input'],
     ['pages/Board.vue', 'new-session'],
 ]);
 
 it('escreve data, problema, duração escolhida e tempo usado em cada linha', function () {
     expect(frontendSource('components/prancheta/SessionList.vue'))
-        ->toContain('{{ row.problemName }}')
-        ->toContain('{{ row.date }} · {{ row.durationLabel }} ·')
-        ->toContain('{{ row.elapsedLabel }}');
+        ->toContain('{{ row.title }}')
+        ->toContain('{{ row.metaLabel }}');
 
     expect(frontendSource('prancheta/sessions.ts'))
+        ->toContain('title: sessionTitle(session, problems),')
+        ->toContain('metaLabel: sessionMetaLabel(session, problems),')
         ->toContain('date: formatSessionDate(session.last_opened_at),')
         ->toContain('durationLabel: formatDurationChoice(session.duration_minutes),')
         ->toContain('elapsedLabel: formatClock(session.elapsed_seconds),');
