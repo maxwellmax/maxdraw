@@ -40,6 +40,7 @@
 - `CurrentSessionResolver::resolve(User)` returns `TrainingSession::ownedBy($user)->orderByDesc('last_opened_at')->orderByDesc('id')->first()`.
 - No pointer column exists on `users`; the tie-break by `id` is the same one `TrainingSessionController::index()` uses, so the first row of the session sheet is always the current one.
 - `POST /api/sessions/{id}/open` sets `last_opened_at = now()` — that single write is what "switching sessions" means; the previous session is left untouched.
+- Renaming does **not** promote a session: `PUT /api/sessions/{trainingSession}` never writes `last_opened_at` — only `open()` does — so which session is current, and the sheet ordering `last_opened_at DESC, id DESC`, are the same before and after a rename.
 - `DELETE /api/sessions/{id}` deletes and then calls `resolve()` again: the next-most-recent session is promoted by consequence, and if none remains a fresh empty one is created.
 
 ### A session is born exactly one way
@@ -49,6 +50,7 @@
 | Field | Value at birth | Source |
 | --- | --- | --- |
 | `problem_id` | `null` unless supplied | request |
+| `name` | `null` — a session is born unnamed, and naming is always a later `PUT` | column (nullable, absent from `create()`) |
 | `session_duration_id` | row where `is_default = true` → 45 minutes | `SessionDurationSeeder` |
 | `show_connection_order` | `true` — a new board opens with the numbering visible | constant (column default is `true` too) |
 | `elapsed_seconds` | `0` | constant |
@@ -56,6 +58,8 @@
 | `nodes` / `edges` / `checks` | `[]` | constant |
 | `estimate` | `SessionCreator::DEFAULT_ESTIMATE` = `mode: user, dau: 1000000, act: 10, per_month: 10000000, ratio: 100, size: 1, peak: 3, ret: 3` | constant |
 | `last_opened_at` | `now()` — makes it current immediately | constant |
+
+`name` is the case that proves the shape of this path: a nullable column absent from the `create()` array is born `null` by the database itself, so `SessionCreator` did not change one line to gain it — there is no dialog before creating a session and no suggested name. Naming for the first time and renaming are the same operation, the `PUT` of the section below.
 
 A missing catalog throws: `'O catálogo de durações não tem a duração pedida — rode o CatalogSeeder.'`.
 
@@ -83,6 +87,9 @@ A missing catalog throws: `'O catálogo de durações não tem a duração pedid
 | `checks` key not a `checklist_items.id` | 422 | `knownChecklistItems()` |
 | `duration_minutes` outside seeded minutes | 422 — "A duração do treino é de 30, 45 ou 60 minutos." | `Rule::in(SessionDuration…minutes)` |
 | `elapsed_seconds` < 0 | 422 | `min:0` |
+| `name` with surrounding spaces | trimmed at both ends; whitespace-only becomes `null` (erases the name, never a 422) | `prepareForValidation()` |
+| `name` > 60 chars | 422 — "O nome da sessão tem no máximo 60 caracteres." | `MAX_SESSION_NAME` |
+| `name` absent from the body | the stored name is preserved — only `null` erases it | `sometimes` + `Arr::only()` |
 | `user_id` in the payload | ignored — not in the rules, never reaches the model | `validated()` |
 
 The same limits are mirrored client-side in `resources/js/canvas/limits.ts` (`MAX_NODES = 200`, `MAX_EDGES = 400`, `MAX_LABEL_LENGTH = 60`) so the engine refuses before the session goes dirty; the server refuses again because the client is not authority. To change a limit, edit the constants in both files — no migration is involved.
