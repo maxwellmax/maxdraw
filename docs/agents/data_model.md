@@ -8,7 +8,7 @@
 
 - Engine: MySQL 8 for dev/prod (`docker-compose.yml` service `mysql:8.0` with volume `sail-mysql`; `.env.example` `DB_CONNECTION=mysql`, `DB_DATABASE=maxdraw`). `config/database.php` falls back to `env('DB_CONNECTION', 'sqlite')`.
 - Tests run on SQLite `:memory:` (`phpunit.xml` `DB_CONNECTION=sqlite`, `DB_DATABASE=:memory:`), with `RefreshDatabase` applied to the whole `Feature` suite via `tests/Pest.php`.
-- Schema location: `database/migrations/` — 20 files. 5 framework/auth (`users`, `cache`, `jobs`, `passkeys`, two-factor columns); 13 domain-table creations timestamped `2026_08_22_2100xx`, in FK dependency order; and 2 dated `2026_08_23_0853xx` that add `training_sessions.show_connection_order` (backfilling `edges[].order = null`) and then drop the numbering-mode lookup that the explicit connection order replaced — 12 domain tables survive.
+- Schema location: `database/migrations/` — 21 files. 5 framework/auth (`users`, `cache`, `jobs`, `passkeys`, two-factor columns); 13 domain-table creations timestamped `2026_08_22_2100xx`, in FK dependency order; and 2 dated `2026_08_23_0853xx` that add `training_sessions.show_connection_order` (backfilling `edges[].order = null`) and then drop the numbering-mode lookup that the explicit connection order replaced — 12 domain tables survive; plus 1 dated `2026_08_25_025639` that adds the nullable `training_sessions.name`, additive and with no backfill (a pre-existing session simply stays nameless).
 - Migration tool: Laravel migrations (`php artisan migrate`; CI runs `php artisan migrate:fresh --seed --force`). No second migration framework.
 - Seed data: `database/seeders/CatalogSeeder` + 10 child seeders, idempotent `upsert`. `database/seeders/data/problems.php` holds the 14 statements as a PHP array.
 - `AppServiceProvider::configureDefaults()` calls `DB::prohibitDestructiveCommands(app()->isProduction())` and `Date::use(CarbonImmutable::class)`.
@@ -25,6 +25,7 @@
 | `id` | bigint PK | |
 | `user_id` | FK → `users.id` | `cascadeOnDelete` — deleting an account deletes its sessions |
 | `problem_id` | FK → `problems.id`, nullable | `restrictOnDelete` |
+| `name` | string, nullable | The label the candidate writes for the drill — free text, no lookup and no Enum, so no uniqueness either. The 60-char ceiling lives in `TrainingSessionUpdateRequest` (`MAX_SESSION_NAME`), not in the column width; `null` means "unnamed", and the session sheet then falls back to the problem name |
 | `session_duration_id` | FK → `session_durations.id` | `restrictOnDelete` |
 | `show_connection_order` | boolean, default `true` | cast `boolean` — without the cast SQLite would hand the resource `1`/`0`; display flag only, never diagram content |
 | `elapsed_seconds` | integer, default 0 | cast `integer` |

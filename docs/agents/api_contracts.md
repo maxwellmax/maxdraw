@@ -48,6 +48,7 @@ Inertia component `Board`, two props: `session` (a resolved `TrainingSessionReso
     "session": {
       "id": 1,
       "problem_id": 1,
+      "name": "Encurtador — 2ª tentativa",
       "duration_minutes": 45,
       "show_connection_order": true,
       "elapsed_seconds": 742,
@@ -151,6 +152,7 @@ The clock always arrives paused: only `elapsed_seconds` travels, and the server 
     {
       "id": 12,
       "problem_id": 2,
+      "name": "Feed — 2ª tentativa",
       "duration_minutes": 60,
       "show_connection_order": true,
       "elapsed_seconds": 742,
@@ -200,6 +202,7 @@ Empty body is valid and yields the defaults. 201 response:
   "data": {
     "id": 13,
     "problem_id": null,
+    "name": null,
     "duration_minutes": 45,
     "show_connection_order": true,
     "elapsed_seconds": 0,
@@ -257,6 +260,12 @@ Full-state write. Body shape is `SessionBody` (`resources/js/prancheta/session.t
 }
 ```
 
+`name` is the one persisted field that never travels inside `SessionBody`. The rename rides this same `PUT` through a dedicated send — `renameSession(id, { name })` in `resources/js/lib/sessionTransport.ts` — and is absent from `bodyFrom()` (`resources/js/prancheta/session.ts`) on purpose: dirty is derived from the payload, so putting the name there would make it a dirty field, re-sent by every autosave tick, and a stale tab would clobber a name typed in another one. `Arr::only()` in `SessionStateWriter::write()` fills only the keys present in the body, so a body carrying just `name` leaves the diagram, the checks, the notes, the duration, `elapsed_seconds` and `last_opened_at` untouched — `updated_at` is the only other column that moves.
+
+| Field | Rules | Notes |
+| --- | --- | --- |
+| `name` | `sometimes`, `nullable`, `string`, `max:60` (`MAX_SESSION_NAME`) | Free user text: no lookup, no Enum, no uniqueness. Omitting the key preserves the stored name; an explicit `null` erases it. |
+
 Response is intentionally minimal — the client already holds the state:
 
 ```json
@@ -269,7 +278,7 @@ Response is intentionally minimal — the client already holds the state:
 | 401 | unauthenticated (route binding aborts 401 when no `User`) |
 | 404 | `{trainingSession}` belongs to another user — the owner-scoped `Route::bind` never finds it |
 | 403 | `Gate::authorize('update', …)` denies (second lock) |
-| 422 | any rule in `TrainingSessionUpdateRequest`: >200 nodes, >400 edges, label >60, notes >5000, unknown component/link slug, edge endpoint outside `nodes`, self-loop, `edges[].order` outside 1–400 or repeated inside the array, `checks` key not a `checklist_items.id`, duration outside 30/45/60, negative `elapsed_seconds` |
+| 422 | any rule in `TrainingSessionUpdateRequest`: >200 nodes, >400 edges, label >60, notes >5000, unknown component/link slug, edge endpoint outside `nodes`, self-loop, `edges[].order` outside 1–400 or repeated inside the array, `checks` key not a `checklist_items.id`, duration outside 30/45/60, negative `elapsed_seconds`, `name` longer than 60 |
 | 429 | throttling — the client waits `Retry-After` (default 20 s) and keeps the session dirty |
 
 Sample 422 body:
@@ -285,7 +294,7 @@ Sample 422 body:
 }
 ```
 
-Normalizations that never produce an error (`prepareForValidation`): negative estimate numbers → `0`; `null` for `nodes[].label`, `edges[].kind`, `edges[].label` → `""`. Nothing else is repaired — the connection order is never rewritten server-side.
+Normalizations that never produce an error (`prepareForValidation`): negative estimate numbers → `0`; `null` for `nodes[].label`, `edges[].kind`, `edges[].label` → `""`; a `name` arriving as a string is trimmed at both ends, and a whitespace-only name becomes `null` — erasing the name and never a 422. Nothing else is repaired — the connection order is never rewritten server-side.
 
 Connection order travels in two places and is validated as follows:
 

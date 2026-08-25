@@ -326,13 +326,16 @@ export function estimateModeOptionsFixture(): EstimateModeOption[] {
 
 /**
  * Três sessões salvas como a listagem as entrega, fora de ordem de propósito:
- * a folha ordena da mais recente para a mais antiga por conta própria.
+ * a folha ordena da mais recente para a mais antiga por conta própria. Os três
+ * estados do nome estão cobertos: uma nomeada, uma sem nome e uma cujo nome só
+ * tem espaços — que a folha trata como sem nome.
  */
 export function sessionSummariesFixture(): SessionSummary[] {
     return [
         {
             id: 7,
             problem_id: null,
+            name: null,
             duration_minutes: 45,
             elapsed_seconds: 0,
             nodes: [],
@@ -341,6 +344,7 @@ export function sessionSummariesFixture(): SessionSummary[] {
         {
             id: 9,
             problem_id: 2,
+            name: 'Feed — 2ª tentativa',
             duration_minutes: 60,
             elapsed_seconds: 742,
             nodes: [
@@ -352,6 +356,7 @@ export function sessionSummariesFixture(): SessionSummary[] {
         {
             id: 4,
             problem_id: 1,
+            name: '   ',
             duration_minutes: 30,
             elapsed_seconds: 3605,
             nodes: [{ id: 'n1', type: 'api', label: 'API', x: 10, y: 10 }],

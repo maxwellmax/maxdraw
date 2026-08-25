@@ -18,6 +18,10 @@ export const BOARD_WARNINGS = {
         'Não foi possível trocar de sessão. O treino desta prancheta continua aqui.',
     sessionDeleteFailed:
         'Não foi possível excluir a sessão. Tente de novo em instantes.',
+    sessionRenameFailed:
+        'Não foi possível renomear a sessão. O nome anterior continua valendo.',
+    sessionNameTooLong:
+        'O nome da sessão tem no máximo 60 caracteres — encurte antes de confirmar.',
 } as const;
 
 export type BoardWarning = keyof typeof BOARD_WARNINGS;

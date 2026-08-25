@@ -24,6 +24,8 @@ class TrainingSessionUpdateRequest extends FormRequest
 
     private const MAX_LABEL = 60;
 
+    private const MAX_SESSION_NAME = 60;
+
     private const MAX_NOTES = 5000;
 
     /**
@@ -42,6 +44,8 @@ class TrainingSessionUpdateRequest extends FormRequest
      */
     protected function prepareForValidation(): void
     {
+        $this->normalizeSessionName();
+
         if (is_array($this->input('estimate'))) {
             $this->merge(['estimate' => $this->normalizedEstimate()]);
         }
@@ -71,6 +75,7 @@ class TrainingSessionUpdateRequest extends FormRequest
 
         return [
             'problem_id' => ['sometimes', 'nullable', 'integer', Rule::exists('problems', 'id')],
+            'name' => ['sometimes', 'nullable', 'string', 'max:'.self::MAX_SESSION_NAME],
             'notes' => ['sometimes', 'nullable', 'string', 'max:'.self::MAX_NOTES],
             'elapsed_seconds' => ['sometimes', 'integer', 'min:0'],
             'duration_minutes' => ['sometimes', 'integer', Rule::in(SessionDuration::query()->pluck('minutes')->all())],
@@ -115,6 +120,7 @@ class TrainingSessionUpdateRequest extends FormRequest
             'nodes.max' => 'O diagrama comporta no máximo '.self::inWords(self::MAX_NODES).' blocos.',
             'edges.max' => 'O diagrama comporta no máximo '.self::inWords(self::MAX_EDGES).' ligações.',
             'notes.max' => 'As notas têm no máximo '.self::inWords(self::MAX_NOTES).' caracteres.',
+            'name.max' => 'O nome da sessão tem no máximo '.self::inWords(self::MAX_SESSION_NAME).' caracteres.',
             'nodes.*.label.max' => 'O rótulo do bloco tem no máximo '.self::inWords(self::MAX_LABEL).' caracteres.',
             'edges.*.label.max' => 'O rótulo da ligação tem no máximo '.self::inWords(self::MAX_LABEL).' caracteres.',
             'nodes.*.type.in' => 'Este componente não existe no catálogo.',
@@ -136,6 +142,22 @@ class TrainingSessionUpdateRequest extends FormRequest
     private static function inWords(int $limit): string
     {
         return number_format($limit, 0, ',', '.');
+    }
+
+    /**
+     * Nome só de espaços é o mesmo que sessão sem nome, e o teto se mede depois
+     * do aparo (US-11.1). Só age quando a chave veio no payload: injetá-la aqui
+     * tiraria a proteção do `sometimes` e todo autosave apagaria o nome gravado.
+     */
+    private function normalizeSessionName(): void
+    {
+        if (! $this->has('name') || ! is_string($this->input('name'))) {
+            return;
+        }
+
+        $name = trim($this->string('name')->value());
+
+        $this->merge(['name' => $name === '' ? null : $name]);
     }
 
     /**

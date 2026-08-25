@@ -6,6 +6,19 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
+ * A duração padrão do lookup, criada só quando ainda não existe: `minutes` é
+ * único, e o teste que insere várias sessões chamaria o mesmo insert duas vezes.
+ */
+function defaultSessionDurationId(): int
+{
+    $existing = DB::table('session_durations')->where('minutes', 45)->value('id');
+
+    return is_null($existing)
+        ? DB::table('session_durations')->insertGetId(['minutes' => 45, 'is_default' => true, 'position' => 2])
+        : (int) $existing;
+}
+
+/**
  * @param  array<string, mixed>  $overrides
  */
 function insertTrainingSession(int $userId, array $overrides = []): int
@@ -13,11 +26,7 @@ function insertTrainingSession(int $userId, array $overrides = []): int
     return DB::table('training_sessions')->insertGetId([
         'user_id' => $userId,
         'problem_id' => null,
-        'session_duration_id' => DB::table('session_durations')->insertGetId([
-            'minutes' => 45,
-            'is_default' => true,
-            'position' => 2,
-        ]),
+        'session_duration_id' => defaultSessionDurationId(),
         'show_connection_order' => true,
         'nodes' => json_encode([]),
         'edges' => json_encode([]),
@@ -39,7 +48,7 @@ test('users_table_matches_the_schema', function () {
 test('training_sessions_table_matches_the_schema', function () {
     expect(Schema::hasTable('training_sessions'))->toBeTrue()
         ->and(Schema::getColumnListing('training_sessions'))->toEqualCanonicalizing([
-            'id', 'user_id', 'problem_id', 'session_duration_id', 'show_connection_order',
+            'id', 'user_id', 'problem_id', 'name', 'session_duration_id', 'show_connection_order',
             'elapsed_seconds', 'notes', 'nodes', 'edges', 'checks', 'estimate',
             'last_opened_at', 'created_at', 'updated_at',
         ])
@@ -49,6 +58,7 @@ test('training_sessions_table_matches_the_schema', function () {
     $columns = collect(Schema::getColumns('training_sessions'))->keyBy('name');
 
     expect($columns['problem_id']['nullable'])->toBeTrue()
+        ->and($columns['name']['nullable'])->toBeTrue()
         ->and($columns['notes']['nullable'])->toBeTrue()
         ->and($columns['last_opened_at']['nullable'])->toBeFalse()
         ->and($columns['nodes']['nullable'])->toBeFalse()
@@ -179,6 +189,18 @@ function legacySequenceModeIds(): array
 }
 
 /**
+ * Quantas migrations precisam voltar para o banco chegar ao schema anterior às
+ * duas migrations da ordem explícita. Contado no repositório em vez de fixado
+ * em dois: toda migration acrescentada depois delas entra no caminho de volta.
+ */
+function stepsBackToBeforeTheOrderMigrations(): int
+{
+    return DB::table('migrations')
+        ->where('migration', '>=', '2026_08_23_085307_add_show_connection_order_to_training_sessions_table')
+        ->count();
+}
+
+/**
  * Volta o banco ao schema anterior à feature e o semeia com sessões antigas,
  * alternadas entre os dois modos de numeração.
  *
@@ -186,7 +208,7 @@ function legacySequenceModeIds(): array
  */
 function seedTheBaseBeforeTheOrderMigrations(int $sessions): array
 {
-    test()->artisan('migrate:rollback', ['--step' => 2])->assertSuccessful();
+    test()->artisan('migrate:rollback', ['--step' => stepsBackToBeforeTheOrderMigrations()])->assertSuccessful();
 
     $userId = User::factory()->create()->id;
     $durationId = DB::table('session_durations')->insertGetId(['minutes' => 45, 'is_default' => true, 'position' => 2]);
@@ -264,7 +286,7 @@ test('rolling_the_order_migrations_back_never_drops_a_diagram', function () {
 
     $before = diagramsOnDisk();
 
-    $this->artisan('migrate:rollback', ['--step' => 2])->assertSuccessful();
+    $this->artisan('migrate:rollback', ['--step' => stepsBackToBeforeTheOrderMigrations()])->assertSuccessful();
 
     expect(Schema::hasTable('sequence_modes'))->toBeTrue()
         ->and(Schema::hasColumn('training_sessions', 'sequence_mode_id'))->toBeTrue()
@@ -294,4 +316,96 @@ test('show_connection_order_is_true_without_being_written', function () {
     ]);
 
     expect((bool) DB::table('training_sessions')->value('show_connection_order'))->toBeTrue();
+});
+
+/**
+ * A migration que acrescenta o nome, instanciada do próprio arquivo: o teste
+ * roda o `up()`/`down()` dela sem depender de quantas migrations vieram depois
+ * nem de contar passos de rollback.
+ */
+function nameMigration(): object
+{
+    return require collect(glob(database_path('migrations/*_add_name_to_training_sessions_table.php')))->sole();
+}
+
+/**
+ * Toda coluna de sessão que a migration do nome não pode encostar, lida crua do
+ * banco: os quatro blocos JSON entram como a string gravada, e a comparação
+ * acontece byte a byte.
+ *
+ * @return array<int, array<string, mixed>>
+ */
+function sessionsBesidesTheName(): array
+{
+    return DB::table('training_sessions')->orderBy('id')
+        ->get([
+            'id', 'user_id', 'problem_id', 'session_duration_id', 'show_connection_order',
+            'elapsed_seconds', 'notes', 'nodes', 'edges', 'checks', 'estimate', 'last_opened_at',
+        ])
+        ->map(fn (object $row): array => (array) $row)
+        ->all();
+}
+
+/**
+ * Uma base como a de antes desta feature: a coluna `name` não existe e as
+ * sessões já carregam diagrama, marcações, notas e tempo corrido.
+ */
+function seedTheBaseBeforeTheNameMigration(int $sessions): void
+{
+    nameMigration()->down();
+
+    $userId = User::factory()->create()->id;
+
+    foreach (range(1, $sessions) as $seed) {
+        $diagram = legacyDiagram($seed);
+
+        insertTrainingSession($userId, [
+            'nodes' => json_encode($diagram['nodes']),
+            'edges' => json_encode($diagram['edges']),
+            'checks' => json_encode(['7' => true]),
+            'estimate' => json_encode(['mode' => 'month', 'per_month' => 500000000]),
+            'notes' => 'o que eu escrevi no treino nº '.$seed,
+            'elapsed_seconds' => 600 * $seed,
+            'last_opened_at' => now()->subDays($seed),
+        ]);
+    }
+}
+
+test('the_name_migration_leaves_every_existing_session_nameless_and_otherwise_untouched', function () {
+    seedTheBaseBeforeTheNameMigration(3);
+
+    expect(Schema::hasColumn('training_sessions', 'name'))->toBeFalse();
+
+    $before = sessionsBesidesTheName();
+
+    nameMigration()->up();
+
+    expect(DB::table('training_sessions')->count())->toBe(3)
+        ->and(DB::table('training_sessions')->whereNull('name')->count())->toBe(3)
+        ->and(sessionsBesidesTheName())->toBe($before);
+});
+
+test('the_name_migration_only_ever_adds_and_removes_its_own_column', function () {
+    $userId = User::factory()->create()->id;
+
+    insertTrainingSession($userId, ['name' => 'Feed de rede social', 'notes' => 'treino de ontem']);
+    insertTrainingSession($userId, ['elapsed_seconds' => 742]);
+
+    $columns = Schema::getColumnListing('training_sessions');
+    $content = sessionsBesidesTheName();
+    $migration = nameMigration();
+
+    $migration->down();
+
+    expect(Schema::hasColumn('training_sessions', 'name'))->toBeFalse()
+        ->and(Schema::getColumnListing('training_sessions'))->toBe(array_values(array_diff($columns, ['name'])))
+        ->and(DB::table('training_sessions')->count())->toBe(2)
+        ->and(sessionsBesidesTheName())->toBe($content);
+
+    $migration->up();
+
+    expect(Schema::getColumnListing('training_sessions'))->toEqualCanonicalizing($columns)
+        ->and(DB::table('training_sessions')->count())->toBe(2)
+        ->and(DB::table('training_sessions')->whereNull('name')->count())->toBe(2)
+        ->and(sessionsBesidesTheName())->toBe($content);
 });

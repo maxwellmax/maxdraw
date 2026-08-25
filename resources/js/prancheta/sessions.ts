@@ -3,15 +3,18 @@
  * (US-11.1, US-11.2, US-11.3).
  *
  * Nenhuma requisição mora aqui — o módulo faz o arranjo da lista (data,
- * problema, duração escolhida, tempo usado e qual é a corrente) e guarda a
- * regra da confirmação de exclusão. Quem fala com o servidor é
+ * problema, duração escolhida, tempo usado e qual é a corrente), guarda a
+ * regra da confirmação de exclusão e orquestra o rename com o transporte
+ * recebido por parâmetro. Quem fala com o servidor é
  * `lib/sessionTransport.ts`, e quem orquestra a troca é a página.
  */
 
 import type { Node } from '@/canvas/types';
+import type { SessionAck } from './autosave';
 import { formatClock } from './clock';
 import type { ProblemOption } from './problems';
 import { problemOf } from './problems';
+import type { BoardWarning } from './warnings';
 
 /**
  * Uma sessão salva como o `TrainingSessionResource` a entrega na listagem — o
@@ -20,15 +23,23 @@ import { problemOf } from './problems';
 export type SessionSummary = {
     id: number;
     problem_id: number | null;
+    name: string | null;
     duration_minutes: number;
     elapsed_seconds: number;
     nodes: Node[];
     last_opened_at: string | null;
 };
 
-/** Uma linha da folha, já pronta para a tela. */
+/**
+ * Uma linha da folha, já pronta para a tela. `title` e `metaLabel` chegam
+ * montados de propósito: quem decide se o título é o nome da sessão ou o do
+ * problema é o arranjo, e o componente só imprime.
+ */
 export type SessionRow = {
     id: number;
+    name: string | null;
+    title: string;
+    metaLabel: string;
     problemName: string;
     date: string;
     durationLabel: string;
@@ -39,6 +50,13 @@ export type SessionRow = {
 
 /** O que a linha escreve quando a sessão não tem problema escolhido. */
 export const FREE_BOARD_LABEL = 'Prancheta livre';
+
+/**
+ * O teto do nome da sessão, em caracteres, medido depois do aparo. Espelha o
+ * `MAX_SESSION_NAME` da `TrainingSessionUpdateRequest`: passar dele no cliente
+ * só adiantaria um 422 do servidor. O excesso é avisado, nunca cortado.
+ */
+export const SESSION_NAME_MAX_LENGTH = 60;
 
 export const EMPTY_LIST_MESSAGE = 'Nenhuma sessão ainda.';
 
@@ -118,14 +136,68 @@ export function sessionRows(
 ): SessionRow[] {
     return [...sessions].sort(byRecency).map((session) => ({
         id: session.id,
-        problemName:
-            problemOf(problems, session.problem_id)?.name ?? FREE_BOARD_LABEL,
+        name: session.name,
+        title: sessionTitle(session, problems),
+        metaLabel: sessionMetaLabel(session, problems),
+        problemName: problemNameOf(session, problems),
         date: formatSessionDate(session.last_opened_at),
         durationLabel: formatDurationChoice(session.duration_minutes),
         elapsedLabel: formatClock(session.elapsed_seconds),
         blockCount: session.nodes.length,
         current: session.id === currentId,
     }));
+}
+
+/**
+ * O nome que o usuário deu à sessão, aparado nas pontas — nulo quando não deu
+ * nenhum ou quando só sobraram espaços, a mesma normalização que a
+ * `TrainingSessionUpdateRequest` faz antes de gravar.
+ */
+export function sessionName(name: string | null | undefined): string | null {
+    const trimmed = (name ?? '').trim();
+
+    return trimmed === '' ? null : trimmed;
+}
+
+function problemNameOf(
+    session: SessionSummary,
+    problems: readonly ProblemOption[],
+): string {
+    return problemOf(problems, session.problem_id)?.name ?? FREE_BOARD_LABEL;
+}
+
+/**
+ * O nome da sessão manda no título; sem nome, o problema — que já cai em
+ * `FREE_BOARD_LABEL` quando não há problema escolhido (US-11.1).
+ */
+function sessionTitle(
+    session: SessionSummary,
+    problems: readonly ProblemOption[],
+): string {
+    return sessionName(session.name) ?? problemNameOf(session, problems);
+}
+
+/**
+ * Os metadados da linha. O problema só entra — e entra primeiro — quando o
+ * título é o nome da sessão: sem nome ele já é o título e repeti-lo aqui seria
+ * ruído.
+ */
+function sessionMetaLabel(
+    session: SessionSummary,
+    problems: readonly ProblemOption[],
+): string {
+    const tokens = [
+        formatSessionDate(session.last_opened_at),
+        formatDurationChoice(session.duration_minutes),
+        formatClock(session.elapsed_seconds),
+        `${session.nodes.length} blocos`,
+    ];
+
+    return (
+        sessionName(session.name) === null
+            ? tokens
+            : [problemNameOf(session, problems), ...tokens]
+    ).join(' · ');
 }
 
 /**
@@ -142,6 +214,75 @@ export function deleteIntent(armed: number | null, id: number): DeleteIntent {
 
 export function deleteLabel(armed: number | null, id: number): string {
     return armed === id ? CONFIRM_DELETE_LABEL : DELETE_LABEL;
+}
+
+/**
+ * Como o rename fala com o servidor. Chega por parâmetro de propósito: é o que
+ * mantém a orquestração pura e testável sem rede, com a requisição morando só
+ * em `lib/sessionTransport.ts`.
+ */
+export type SessionRenameTransport = (
+    id: number,
+    body: { name: string | null },
+) => Promise<SessionAck>;
+
+/**
+ * O desfecho de um rename. `saved` traz a lista já com o nome aplicado e o
+ * `updated_at` do ack, para a página gravar o baseline; `warned` traz o aviso
+ * e a lista anterior intacta.
+ */
+export type SessionRenameResult =
+    | {
+          status: 'saved';
+          sessions: SessionSummary[];
+          updatedAt: string | null;
+      }
+    | {
+          status: 'warned';
+          warning: BoardWarning;
+          sessions: SessionSummary[];
+      };
+
+/**
+ * O rename de ponta a ponta, sem saber falar com o servidor: apara o texto,
+ * recusa o que passa do teto — avisando, nunca cortando (US-11.1) — e só então
+ * chama o transporte uma única vez, com `''` virando nulo. A lista volta com o
+ * nome aplicado na sessão do id; qualquer recusa devolve a de antes.
+ */
+export async function commitSessionRename(
+    sessions: readonly SessionSummary[],
+    id: number,
+    text: string,
+    transport: SessionRenameTransport,
+): Promise<SessionRenameResult> {
+    const trimmed = text.trim();
+
+    if (trimmed.length > SESSION_NAME_MAX_LENGTH) {
+        return warnedRename('sessionNameTooLong', sessions);
+    }
+
+    const name = sessionName(trimmed);
+
+    try {
+        const ack = await transport(id, { name });
+
+        return {
+            status: 'saved',
+            sessions: sessions.map((session) =>
+                session.id === id ? { ...session, name } : session,
+            ),
+            updatedAt: ack.updated_at,
+        };
+    } catch {
+        return warnedRename('sessionRenameFailed', sessions);
+    }
+}
+
+function warnedRename(
+    warning: BoardWarning,
+    sessions: readonly SessionSummary[],
+): SessionRenameResult {
+    return { status: 'warned', warning, sessions: [...sessions] };
 }
 
 function timeOf(isoDate: string | null): number {

@@ -34,6 +34,29 @@ export async function sendSessionState(
     }
 }
 
+/**
+ * O envio do nome da sessão. Vai pelo mesmo `PUT` do autosave, mas com corpo
+ * próprio — só `{ name }`: o nome fora do `SessionBody` é o que o mantém longe
+ * do que suja a sessão e do clobber entre abas (US-11.1).
+ */
+export async function renameSession(
+    id: number,
+    body: { name: string | null },
+): Promise<SessionAck> {
+    try {
+        const response = await http.getClient().request({
+            method: 'put',
+            url: update.url(id),
+            data: body,
+            headers: { Accept: 'application/json' },
+        });
+
+        return ackFrom(response.data);
+    } catch (error) {
+        throw rejectionFrom(error);
+    }
+}
+
 function ackFrom(data: string): SessionAck {
     try {
         const parsed = JSON.parse(data) as Partial<SessionAck>;

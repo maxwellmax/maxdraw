@@ -25,6 +25,11 @@ it('congela os tempos do autosave', function (string $declaration) {
     'teto do recuo' => ['export const RETRY_MAX_MS = 48000;'],
 ]);
 
+/**
+ * `name` é a única chave que o servidor valida e o autosave não manda: o rename
+ * tem envio dedicado (`renameSession()`), e pôr o nome no `SessionBody` o
+ * tornaria campo sujo, reenviado a cada gravação do diagrama (RF-04/CT-01).
+ */
 it('envia o mesmo payload que a TrainingSessionUpdateRequest valida', function () {
     preg_match(
         '/export type SessionBody = \{(.*?)\n\};/s',
@@ -41,7 +46,7 @@ it('envia o mesmo payload que a TrainingSessionUpdateRequest valida', function (
     );
 
     expect(collect($client[1])->sort()->values()->all())
-        ->toBe(collect($server[1])->sort()->values()->all());
+        ->toBe(collect($server[1])->reject(fn (string $field): bool => $field === 'name')->sort()->values()->all());
 });
 
 it('monta o payload do servidor num arquivo só', function (string $path) {

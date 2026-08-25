@@ -30,6 +30,7 @@ class TrainingSessionResource extends JsonResource
         return [
             'id' => $this->id,
             'problem_id' => $this->problem_id,
+            'name' => $this->name,
             'duration_minutes' => $this->duration_minutes,
             'show_connection_order' => $this->show_connection_order,
             'elapsed_seconds' => $this->elapsed_seconds,

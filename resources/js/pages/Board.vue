@@ -47,6 +47,7 @@ import {
     deleteSession,
     fetchSessions,
     openSession,
+    renameSession,
 } from '@/lib/sessionTransport';
 import {
     bounds,
@@ -66,6 +67,7 @@ import { FOLLOW_CURRENT, phaseRows, toggleChoice } from '@/prancheta/roteiro';
 import type { SessionStore } from '@/prancheta/session';
 import type { SessionSummary } from '@/prancheta/sessions';
 import {
+    commitSessionRename,
     deleteIntent,
     sessionCountLabel,
     sessionRows,
@@ -427,6 +429,37 @@ async function removeSession(sessionId: number): Promise<void> {
     await loadSessions();
 }
 
+/**
+ * Renomear grava só o nome, pelo envio dedicado, e a folha aplica a mudança na
+ * linha em memória: nenhuma navegação e nenhuma nova listagem (US-11.1).
+ * Quando a renomeada é a corrente, o `updated_at` da resposta vira o baseline
+ * de versão e o rascunho é regravado no navegador — sem isso o próximo boot
+ * descartaria o desenho ainda não enviado e avisaria versão mais nova à toa.
+ */
+async function saveSessionName(sessionId: number, name: string): Promise<void> {
+    const result = await commitSessionRename(
+        savedSessions.value,
+        sessionId,
+        name,
+        renameSession,
+    );
+
+    if (result.status === 'warned') {
+        warn(result.warning);
+
+        return;
+    }
+
+    savedSessions.value = result.sessions;
+
+    if (sessionId !== store.id) {
+        return;
+    }
+
+    store.setServerUpdatedAt(result.updatedAt);
+    autosave.saveLocal();
+}
+
 /** Escolher o problema grava-o na sessão corrente e fecha a folha (US-2.1). */
 function pickProblem(problemId: number | null): void {
     store.setProblemId(problemId);
@@ -769,6 +802,7 @@ function placeNode(slug: string): void {
                 :rows="sessionList"
                 :armed="armedDeletion"
                 @open="switchToSession"
+                @rename="saveSessionName"
                 @remove="askToDelete"
             />
 

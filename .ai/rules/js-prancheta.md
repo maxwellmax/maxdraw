@@ -52,3 +52,10 @@ Trocar de sessão troca o id da corrente, então store, motor e autosave precisa
 Antes de trocar ou criar, `await saveNow()` — por isso `useAutosave` devolve `saveNow: () => Promise<void>`, não `void`. Exclusão é em dois cliques (`deleteIntent`: `arm` → `delete`); nenhuma requisição sai no primeiro. Excluir a corrente só recarrega: o servidor já promove a mais recente restante, ou cria uma vazia.
 
 `formatSessionDate` escreve o mês abreviado à mão em vez de usar `Intl` — o formato não pode depender da tabela de locales que o runtime carregou.
+
+## Nome da sessão não entra no SessionBody
+`training_sessions.name` é o único campo persistido que NÃO integra `SessionBody` nem o retorno de `bodyFrom()` (prancheta/session.ts). O nome trafega sozinho pelo envio dedicado `renameSession(id, { name })` de `lib/sessionTransport.ts`, no mesmo `PUT /api/sessions/{id}`.
+
+Porquê: aqui "sujo é derivado do payload". Pôr `name` no corpo o tornaria campo sujo, reenviado a cada tique do autosave — e uma aba parada com o nome antigo voltaria a atropelar (clobber) o nome digitado em outra. O `Arr::only()` do `SessionStateWriter` só preenche as chaves presentes, então um corpo com apenas `name` não toca diagrama, marcações, notas, duração, `elapsed_seconds` nem `last_opened_at`.
+
+Consequência no cliente: o `updated_at` da resposta do rename realimenta o baseline por `store.setServerUpdatedAt(ack.updated_at)` seguido de `autosave.saveLocal()` — nunca `markSaved()`, que marcaria como salvo o diagrama sujo de agora — e **somente** quando o id renomeado é o da corrente (`sessionId === store.id`). Renomear outra sessão só atualiza a linha em memória: zero navegação Inertia, zero `loadSessions()`.
