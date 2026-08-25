@@ -102,6 +102,19 @@ describe('SessionStore', () => {
         expect(store.serverUpdatedAt).toBe('2026-08-22T12:30:00.000000Z');
     });
 
+    it('renaming_only_moves_the_server_baseline', () => {
+        const { store } = boot();
+
+        store.setNotes('rascunho que ainda não subiu');
+
+        expect(store.isDirty).toBe(true);
+
+        store.setServerUpdatedAt('2026-08-22T12:30:00.000000Z');
+
+        expect(store.serverUpdatedAt).toBe('2026-08-22T12:30:00.000000Z');
+        expect(store.isDirty).toBe(true);
+    });
+
     it('marca salvo o payload enviado, não o que chegou durante o envio', () => {
         const { store } = boot();
 

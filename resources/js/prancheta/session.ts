@@ -255,6 +255,18 @@ export class SessionStore {
     }
 
     /**
+     * Realimenta só o baseline de versão, sem dizer que o payload de agora foi
+     * salvo. É o que o rename precisa: o `updated_at` da resposta é mais novo
+     * que o do boot, e sem esta linha o `resolveBoot()` da próxima carga
+     * descartaria o rascunho local e avisaria `serverVersionIsNewer`. Reusar
+     * `markSaved()` aqui seria pior que não fazer nada — marcaria como salvo um
+     * diagrama sujo, que então nunca subiria.
+     */
+    setServerUpdatedAt(updatedAt: string | null): void {
+        this.serverUpdatedAt = updatedAt;
+    }
+
+    /**
      * Marca como salvo o payload que foi enviado, não o de agora: o que mudou
      * durante o envio continua sujo e entra no próximo (US-8.3).
      */

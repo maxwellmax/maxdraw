@@ -41,6 +41,10 @@ describe('lista de sessões', () => {
 
         expect(rows[0]).toEqual({
             id: 9,
+            name: 'Feed — 2ª tentativa',
+            title: 'Feed — 2ª tentativa',
+            metaLabel:
+                'Feed de rede social · 14 mar 2026 · 60 min · 12:22 · 2 blocos',
             problemName: 'Feed de rede social',
             date: '14 mar 2026',
             durationLabel: '60 min',

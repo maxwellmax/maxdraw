@@ -12,11 +12,13 @@ import type { RoteiroPhase } from '@/prancheta/roteiro';
  * traz `show_connection_order`, e a conversão mora no store da sessão.
  *
  * A bandeira é opcional enquanto o servidor não a devolve: até lá o cliente
- * assume acesa, que é o padrão de toda sessão nova.
+ * assume acesa, que é o padrão de toda sessão nova. `name` é opcional pelo
+ * mesmo motivo: um rascunho gravado antes da coluna existir não o traz.
  */
 export type SessionPayload = {
     id: number;
     problem_id: number | null;
+    name?: string | null;
     duration_minutes: number;
     show_connection_order?: boolean;
     elapsed_seconds: number;
