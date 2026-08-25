@@ -3,15 +3,18 @@
  * (US-11.1, US-11.2, US-11.3).
  *
  * Nenhuma requisição mora aqui — o módulo faz o arranjo da lista (data,
- * problema, duração escolhida, tempo usado e qual é a corrente) e guarda a
- * regra da confirmação de exclusão. Quem fala com o servidor é
+ * problema, duração escolhida, tempo usado e qual é a corrente), guarda a
+ * regra da confirmação de exclusão e orquestra o rename com o transporte
+ * recebido por parâmetro. Quem fala com o servidor é
  * `lib/sessionTransport.ts`, e quem orquestra a troca é a página.
  */
 
 import type { Node } from '@/canvas/types';
+import type { SessionAck } from './autosave';
 import { formatClock } from './clock';
 import type { ProblemOption } from './problems';
 import { problemOf } from './problems';
+import type { BoardWarning } from './warnings';
 
 /**
  * Uma sessão salva como o `TrainingSessionResource` a entrega na listagem — o
@@ -211,6 +214,75 @@ export function deleteIntent(armed: number | null, id: number): DeleteIntent {
 
 export function deleteLabel(armed: number | null, id: number): string {
     return armed === id ? CONFIRM_DELETE_LABEL : DELETE_LABEL;
+}
+
+/**
+ * Como o rename fala com o servidor. Chega por parâmetro de propósito: é o que
+ * mantém a orquestração pura e testável sem rede, com a requisição morando só
+ * em `lib/sessionTransport.ts`.
+ */
+export type SessionRenameTransport = (
+    id: number,
+    body: { name: string | null },
+) => Promise<SessionAck>;
+
+/**
+ * O desfecho de um rename. `saved` traz a lista já com o nome aplicado e o
+ * `updated_at` do ack, para a página gravar o baseline; `warned` traz o aviso
+ * e a lista anterior intacta.
+ */
+export type SessionRenameResult =
+    | {
+          status: 'saved';
+          sessions: SessionSummary[];
+          updatedAt: string | null;
+      }
+    | {
+          status: 'warned';
+          warning: BoardWarning;
+          sessions: SessionSummary[];
+      };
+
+/**
+ * O rename de ponta a ponta, sem saber falar com o servidor: apara o texto,
+ * recusa o que passa do teto — avisando, nunca cortando (US-11.1) — e só então
+ * chama o transporte uma única vez, com `''` virando nulo. A lista volta com o
+ * nome aplicado na sessão do id; qualquer recusa devolve a de antes.
+ */
+export async function commitSessionRename(
+    sessions: readonly SessionSummary[],
+    id: number,
+    text: string,
+    transport: SessionRenameTransport,
+): Promise<SessionRenameResult> {
+    const trimmed = text.trim();
+
+    if (trimmed.length > SESSION_NAME_MAX_LENGTH) {
+        return warnedRename('sessionNameTooLong', sessions);
+    }
+
+    const name = sessionName(trimmed);
+
+    try {
+        const ack = await transport(id, { name });
+
+        return {
+            status: 'saved',
+            sessions: sessions.map((session) =>
+                session.id === id ? { ...session, name } : session,
+            ),
+            updatedAt: ack.updated_at,
+        };
+    } catch {
+        return warnedRename('sessionRenameFailed', sessions);
+    }
+}
+
+function warnedRename(
+    warning: BoardWarning,
+    sessions: readonly SessionSummary[],
+): SessionRenameResult {
+    return { status: 'warned', warning, sessions: [...sessions] };
 }
 
 function timeOf(isoDate: string | null): number {
